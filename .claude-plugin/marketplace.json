@@ -1,0 +1,17 @@
+{
+  "name": "bb-doc-skills-marketplace",
+  "owner": {
+    "name": "B16B1RD"
+  },
+  "plugins": [
+    {
+      "name": "bb-doc-skills",
+      "source": {
+        "source": "github",
+        "repo": "B16B1RD/bb-doc-skills"
+      },
+      "description": "Five Japanese writing, review, and visual explanation skills for Claude Code."
+    }
+  ],
+  "description": "Japanese writing, review, and visual explanation skills."
+}

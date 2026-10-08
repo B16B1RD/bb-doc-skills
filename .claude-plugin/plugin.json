@@ -1,0 +1,18 @@
+{
+  "name": "bb-doc-skills",
+  "version": "0.1.0",
+  "description": "Five Japanese writing, review, and visual explanation skills for Claude Code.",
+  "author": {
+    "name": "B16B1RD",
+    "url": "https://github.com/B16B1RD"
+  },
+  "repository": "https://github.com/B16B1RD/bb-doc-skills",
+  "license": "MIT",
+  "keywords": [
+    "writing",
+    "documentation",
+    "japanese",
+    "review",
+    "explanation"
+  ]
+}
