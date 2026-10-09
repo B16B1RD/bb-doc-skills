@@ -5,13 +5,18 @@
 違反シグナルを行番号つきで列挙する。出力はシグナルであって判定ではない——
 引用された悪例の中のヒットは違反ではないので、利用側が文脈を確認すること。
 
+通常段落は 5 文相当以上または 250 字以上を弱い確認開始の目安とする。
+計測済みの paragraph_length は配列、未計測は null と paragraph_measurement の理由で示す。
+段落の数・最大文数・最大字数も未計測なら null。除外は目視免除ではない。
+--paragraphs-unmeasured REASON は HTML 抽出等で構造を失った場合に指定し、他の検査は続ける。
+
 使い方:
     python3 scan.py <file> [--json] [--baseline <前回の --json 出力>] [--preserve <原文>]
     python3 scan.py <file> --profile reference [--json] [--baseline <前回の --json 出力>]
 
 --profile reference は、README・Issue・手順書などの参照系技術文書向けの設定。検出するのは
 tech-write/references/style.md の S1（前置きフィラー）・S2（万能語）・S3（太字）・
-S4（ヘッジ）・S6（空虚な結び）と、弱シグナルの S9（記号。下の記号表記）で、語表は style.md の日本語の語に合わせてある。
+S4（ヘッジ）・S6（空虚な結び）と、弱シグナルの S10（通常段落の長さ）・S9（記号。下の記号表記）で、語表は style.md の日本語の語に合わせてある。
 これに、既定と共通の LLM っぽい言い回し・翻訳調の比喩の弱シグナルを加える。
 手順の「〜してください」を指示レジスタとして数えないなど、判断文書向けの原則 2・4・5・8 と
 文体レジスタは出力に含めない。太字は箇条書き先頭のラベル（`- **名前**: 説明`）を除いて数える。
@@ -29,14 +34,14 @@ S4（ヘッジ）・S6（空虚な結び）と、弱シグナルの S9（記号�
 --baseline を渡すと、前回スキャンとの差分を resolved（前回あり今回なし）/
 new（今回のみ）/ persisting（両方）に仕分けて出力に加える。finding の同一性は
 「カテゴリ + NFC 正規化した該当語」で判定するため、行番号のずれだけでは new に
-ならない。--baseline なしの出力・exit code は従来と完全に同一。
+ならない。既存カテゴリの baseline 比較と exit code は維持する。段落長は統計を別に比較し、旧形式・未計測は比較不能とする。
 
 --preserve を渡すと、<file>（書き直し後）を原文と突き合わせ、原文にあった数字と
 インラインコード（バッククォートで囲んだ部分）が書き直し後に 1 つも残っていないものを、
 原文の行番号つきで出力の末尾に加える。数字は NFKC で全角を半角に直し、桁区切りの
 カンマを除いて比べる（「32,000」と「32000」は同じ）。出現回数は比べず、英字の製品名など
 バッククォートで囲まれていない語は対象にしない。消えた要素があっても exit code は変えない。
---preserve なしの出力・exit code は従来と完全に同一。
+--preserve なしでは保持の明細を加えず、exit code は維持する。
 
 語彙系の各ヒットには severity（strong/weak）が付く。weak には、コーパス実測で
 正当用法が確認された語と、正当用法を削らせないため予防的に暫定指定した語がある。
@@ -239,6 +244,446 @@ def prose_lines(lines):
         yield i, PROSE_INLINE_CODE.sub(" ", line)
 
 
+# --- 通常段落の弱シグナル（S10）-----------------------------------------------
+PARAGRAPH_SENTENCES = 5
+PARAGRAPH_CHARS = 250
+PARAGRAPH_JA = re.compile(r"[ぁ-んァ-ヶ一-龯]")
+PARAGRAPH_ENTITY = re.compile(r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]+);")
+PARAGRAPH_LIST = re.compile(r"^( {0,3})([-+*]|[0-9]{1,9}[.)])([ \t]+|$)")
+PARAGRAPH_HEADING = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+|$)")
+PARAGRAPH_SETEXT = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
+PARAGRAPH_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+PARAGRAPH_HTML_BLOCK = re.compile(
+    r"^ {0,3}</?(?:address|article|aside|base|basefont|blockquote|body|caption|center|"
+    r"col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|"
+    r"form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|"
+    r"menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|"
+    r"tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)", re.I)
+
+
+class ParagraphUnsupported(ValueError):
+    """通常段落の構造・表示文字を保証できない入力。"""
+
+
+def paragraph_flanking(text, pos, width):
+    """delimiter の左右の空白・Unicode 句読点から開閉可能性を判定する。"""
+    before = text[pos - 1] if pos else " "
+    after = text[pos + width] if pos + width < len(text) else " "
+    punctuation = lambda value: unicodedata.category(value)[0] in "PS"
+    left = not after.isspace() and (not punctuation(after) or before.isspace() or punctuation(before))
+    right = not before.isspace() and (not punctuation(before) or after.isspace() or punctuation(after))
+    if text[pos] == "_":
+        return left and (not right or punctuation(before)), right and (not left or punctuation(after))
+    return left, right
+
+
+def paragraph_inline(text, depth=0):
+    """限定した inline 構文の表示文字。複雑なリンク等は未計測へ戻す。"""
+    if depth > 16:
+        raise ParagraphUnsupported("深い inline の入れ子")
+    out = []
+    angle_no_close = False
+    unmatched_widths = {}
+    pos = 0
+    punctuation = r'!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
+    while pos < len(text):
+        char = text[pos]
+        if char == "\\" and pos + 1 < len(text):
+            following = text[pos + 1]
+            if following == "\n" or following in punctuation:
+                out.append(" " if following == "\n" else following)
+                pos += 2
+                continue
+        if char == "&":
+            entity = PARAGRAPH_ENTITY.match(text, pos)
+            if entity:
+                value = entity[0]
+                from html import unescape
+                from html.entities import html5
+                if value.startswith("&#") or value[1:] in html5:
+                    out.append(unescape(value))
+                    pos += len(value)
+                    continue
+        if text.startswith("<!--", pos):
+            close = text.find("-->", pos + 4)
+            body = text[pos + 4:close] if close >= 0 else ""
+            if close < 0 or "--" in body or body.startswith((">", "->")) or body.endswith("-"):
+                raise ParagraphUnsupported("非対応の inline HTML コメント")
+            pos = close + 3
+            continue
+        if char == "`":
+            end = pos + 1
+            while end < len(text) and text[end] == "`":
+                end += 1
+            marker = text[pos:end]
+            close = text.find(marker, end)
+            # 異なる長さの run を部分一致させない。
+            if close >= 0 and (close == 0 or text[close - 1] != "`") and (
+                    close + len(marker) == len(text) or text[close + len(marker)] != "`"):
+                out.append(" ")
+                pos = close + len(marker)
+                continue
+            raise ParagraphUnsupported("閉じ方または run 長が非対応のコードスパン")
+        image = text.startswith("![", pos)
+        if char == "[" or image:
+            opening = pos + int(image)
+            close = text.find("]", opening + 1)
+            if close >= 0 and close + 1 < len(text) and text[close + 1] == "(":
+                label = text[opening + 1:close]
+                if "[" in label or "\\" in label:
+                    raise ParagraphUnsupported("入れ子またはエスケープを含むリンク表示文字")
+                target_end = text.find(")", close + 2)
+                target = text[close + 2:target_end] if target_end >= 0 else ""
+                if target_end < 0 or any(char in target for char in "(\\\"'") or re.search(r"\s", target):
+                    raise ParagraphUnsupported("閉じ方・入れ子・title・escape が非対応のリンク先")
+                out.append(" " if image else paragraph_inline(label, depth + 1))
+                pos = target_end + 1
+                continue
+            raise ParagraphUnsupported("参照リンク・画像または解決不能な角括弧表記")
+        if char == "<" and not angle_no_close:
+            close = text.find(">", pos + 1)
+            if close >= 0:
+                value = text[pos + 1:close]
+                if re.fullmatch(r"(?:https?://|mailto:)[^\s<>]+", value):
+                    out.append(value.removeprefix("mailto:"))
+                elif re.fullmatch(r"/?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?", value):
+                    if '\"' in value or "'" in value:
+                        raise ParagraphUnsupported("引用符を含む inline HTML 属性")
+                else:
+                    raise ParagraphUnsupported("非対応の inline HTML・autolink")
+                pos = close + 1
+                continue
+            angle_no_close = True
+        if char in "*_":
+            if text.startswith(char * 3, pos):
+                raise ParagraphUnsupported("3 個以上の強調 delimiter run")
+            width = 2 if text.startswith(char * 2, pos) else 1
+            marker = char * width
+            if char in unmatched_widths and unmatched_widths[char] != width:
+                raise ParagraphUnsupported("異なる長さの強調 delimiter run の未解決併用")
+            close = text.find(marker, pos + width)
+            can_open, _ = paragraph_flanking(text, pos, width)
+            can_close = close >= 0 and paragraph_flanking(text, close, width)[1]
+            if can_open and close >= 0:
+                close_width = 1
+                while close + close_width < len(text) and text[close + close_width] == char:
+                    close_width += 1
+                if close_width != width:
+                    raise ParagraphUnsupported("異なる長さの強調 delimiter run の部分対応")
+            # intraword underscore は装飾としない。
+            in_word = char == "_" and pos > 0 and text[pos - 1].isalnum()
+            if close >= 0 and not in_word and char == "_" and close + width < len(text) and text[close + width].isalnum():
+                raise ParagraphUnsupported("単語に隣接する underscore 強調の閉じ方")
+            if can_open and can_close and not in_word:
+                if text[pos + width:close].endswith("\\"):
+                    raise ParagraphUnsupported("非対応の強調 delimiter の閉じ方")
+                inner = text[pos + width:close]
+                if inner and not inner[0].isspace() and not inner[-1].isspace():
+                    out.append(paragraph_inline(inner, depth + 1))
+                    pos = close + width
+                    continue
+            unmatched_widths[char] = width
+            out.append(marker)
+            pos += width
+            continue
+        out.append(char)
+        pos += 1
+    return "".join(out)
+
+
+def paragraph_container_content(body):
+    """除外 container の leaf が lazy continuation を持つ paragraph か。"""
+    nested = 0
+    while nested < 16:
+        if re.match(r"^ *\t", body):
+            raise ParagraphUnsupported("container 内の tab 字下げ")
+        quote = re.match(r"^ {0,3}> ?", body)
+        listing = PARAGRAPH_LIST.match(body)
+        if quote:
+            body = body[quote.end():]
+        elif listing:
+            body = body[listing.end():]
+        else:
+            break
+        nested += 1
+    if nested == 16:
+        raise ParagraphUnsupported("深い container の入れ子")
+    fence = PARAGRAPH_FENCE.match(body)
+    if fence:
+        if nested:
+            raise ParagraphUnsupported("入れ子 container の fence 境界")
+        return False, (fence[1][0], len(fence[1]))
+    if not body.strip() or body.startswith("    ") or PARAGRAPH_HEADING.match(body) or re.fullmatch(
+            r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", body):
+        return False, None
+    if PARAGRAPH_HTML_BLOCK.match(body) or body.lstrip().startswith(("|", "<")):
+        raise ParagraphUnsupported("container 内部の table・山括弧表記の境界")
+    return True, None
+
+
+def paragraph_measure(text):
+    """依存なしの限定 Markdown 抽出。CommonMark 完全対応は保証しない。
+
+    通常本文、soft/hard break、ATX/Setext、空行区切り、リスト/引用の継続・
+    入れ子・lazy continuation、pipe table、同種 fence、4 space code、先頭 YAML
+    frontmatter、CommonMark の block tag/comment/script 等を扱う。リスト/引用の
+    内部はまとめて除外し、除外の両側は結合しない。リンクは単純な inline 形、
+    単純な強調・escape・entity・閉じた単純な inline HTML コメント・同長 backtick span を扱う。参照リンク、3 個以上の
+    強調 delimiter・異なる run 長の部分対応や未解決併用・深い入れ子・
+    単語境界に曖昧さがある underscore、title/escape/
+    入れ子を含むリンク先、引用符付き HTML 属性、escape/code を含む table 見出し
+    などの複雑な inline、tab 字下げ（リスト記号後も含む）、入れ子 container の fence、
+    container 内部の表・山括弧表記、閉じない frontmatter/HTML 等は
+    文書全体を未計測とする。
+    日本語を含む本文だけ。字数は非空白 codepoint、文数相当は 。！？!? run と
+    残りの近似。HTML の flatten 等の構造消失は caller が明示する必要がある。
+    """
+    lines = text.splitlines()
+    rows, current = [], []
+    container = None
+    after_blank = False
+    fence = None
+    html_end = None
+    html_to_blank = False
+    table = False
+
+    def flush():
+        if current:
+            body = paragraph_inline("\n".join(line for _, line in current))
+            if PARAGRAPH_JA.search(body):
+                chars = len(re.sub(r"\s", "", body))
+                sentences = sum(bool(re.sub(r'[\s」』）)\]】”’]+', "", part))
+                                for part in re.split(r"[。！？!?]+", body))
+                rows.append(dict(line=current[0][0], end_line=current[-1][0],
+                                 sentences=sentences, chars=chars))
+            current.clear()
+
+    try:
+        start = 0
+        if lines and lines[0].strip() == "---":
+            closing = next((n for n in range(1, len(lines))
+                            if lines[n].strip() in ("---", "...")), None)
+            if closing is None:
+                raise ParagraphUnsupported("閉じない frontmatter")
+            start = closing + 1
+        for index in range(start, len(lines)):
+            line = lines[index]
+            number = index + 1
+            if fence:
+                if re.fullmatch(r" {0,3}" + re.escape(fence[0]) +
+                                "{" + str(fence[1]) + r",}[ \t]*", line):
+                    fence = None
+                continue
+            if html_end:
+                if re.search(html_end, line, re.I):
+                    html_end = None
+                continue
+            if not line.strip():
+                flush()
+                after_blank = True
+                if container:
+                    if container[0] == "quote":
+                        container = None
+                    else:
+                        container = (container[0], container[1], False, container[3])
+                table = html_to_blank = False
+                continue
+            if html_to_blank:
+                continue
+            if re.match(r"^ *\t", line):
+                raise ParagraphUnsupported("tab 字下げ")
+            indent = len(line) - len(line.lstrip(" "))
+            if container:
+                quote = re.match(r"^ {0,3}> ?", line)
+                inside = (container[0] == "quote" and quote) or (container[0] == "list" and indent >= container[1])
+                if inside:
+                    body = line[quote.end():] if container[0] == "quote" else line[container[1]:]
+                    if re.match(r"^ *\t", body):
+                        raise ParagraphUnsupported("container 内の tab 字下げ")
+                    if container[3]:
+                        marker, width = container[3]
+                        closing = re.fullmatch(r" {0,3}" + re.escape(marker) + "{" + str(width) + r",}[ \t]*", body)
+                        container = (container[0], container[1], False, None if closing else container[3])
+                    elif container[2] is True and PARAGRAPH_SETEXT.match(body):
+                        container = (container[0], container[1], False, None)
+                    elif body.startswith("    ") and container[2] is True and not after_blank:
+                        pass  # paragraph の字下げ継続は code block にしない。
+                    else:
+                        active, inner_fence = paragraph_container_content(body)
+                        container = (container[0], container[1], active, inner_fence)
+                    after_blank = False
+                    continue
+                interrupt = bool(PARAGRAPH_HEADING.match(line) or PARAGRAPH_FENCE.match(line)
+                                 or PARAGRAPH_HTML_BLOCK.match(line) or quote or PARAGRAPH_LIST.match(line)
+                                 or re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line))
+                if interrupt or after_blank or container[2] is False:
+                    container = None
+                else:
+                    continue
+            after_blank = False
+            if re.match(r"^ {0,3}>", line):
+                flush()
+                body = re.sub(r"^ {0,3}> ?", "", line, count=1)
+                active, inner_fence = paragraph_container_content(body)
+                table = False
+                container = ("quote", 0, active, inner_fence)
+                continue
+            if current and PARAGRAPH_SETEXT.match(line):
+                current.clear()  # リストより先に直前 paragraph の Setext を判定。
+                continue
+            listing = PARAGRAPH_LIST.match(line)
+            if listing and not re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line):
+                # 2. は既存 paragraph を中断しない（先頭なら ordered list）。
+                if not current or re.match(r" {0,3}(?:[-+*]|1[.)])(?:[ \t]+|$)", line):
+                    flush()
+                    if "\t" in listing[3]:
+                        raise ParagraphUnsupported("リスト記号後の tab 字下げ")
+                    spaces = len(listing[3])
+                    content_indent = len(listing[1]) + len(listing[2]) + (spaces if 1 <= spaces <= 4 else 1)
+                    body = line[content_indent:]
+                    active, inner_fence = paragraph_container_content(body)
+                    table = False
+                    container = ("list", content_indent, active, inner_fence)
+                    continue
+            if table:
+                interrupt = bool(PARAGRAPH_HEADING.match(line) or PARAGRAPH_FENCE.match(line)
+                                 or PARAGRAPH_LIST.match(line) or re.match(r"^ {0,3}>", line)
+                                 or PARAGRAPH_HTML_BLOCK.match(line)
+                                 or re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line))
+                if not interrupt:
+                    continue  # CommonMark+table は pipe なしの本文行も table に含める。
+                table = False
+            if index + 1 < len(lines) and "|" in line and re.fullmatch(
+                    r" {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*", lines[index + 1]):
+                if "\\" in line or "`" in line:
+                    raise ParagraphUnsupported("table 見出しの escape・code span")
+                header = line.strip().removeprefix("|").removesuffix("|").split("|")
+                delimiter = lines[index + 1].strip().removeprefix("|").removesuffix("|").split("|")
+                if len(header) == len(delimiter):
+                    flush()
+                    table = True
+                    continue
+            if PARAGRAPH_HEADING.match(line):
+                flush()
+                continue
+            if re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line):
+                flush()
+                continue
+            opening = PARAGRAPH_FENCE.match(line)
+            if opening:
+                flush()
+                marker, info = opening.groups()
+                if marker[0] == "`" and "`" in info:
+                    raise ParagraphUnsupported("backtick を含む fence info")
+                fence = (marker[0], len(marker))
+                continue
+            if indent >= 4 and not current:
+                continue
+            stripped = line[indent:] if indent <= 3 else ""
+            ending = None
+            if stripped.startswith("<!--"):
+                ending = r"-->"
+            elif stripped.startswith("<?"):
+                ending = r"\?>"
+            elif stripped.startswith("<![CDATA["):
+                ending = r"\]\]>"
+            elif re.match(r"<![A-Z]", stripped):
+                ending = ">"
+            else:
+                raw_tag = re.match(r"<(script|pre|style|textarea)(?:[ \t>]|$)", stripped, re.I)
+                if raw_tag:
+                    ending = r"</" + raw_tag[1] + r"\s*>"
+            if ending:
+                flush()
+                if not re.search(ending, stripped, re.I):
+                    html_end = ending
+                continue
+            generic_tag = re.fullmatch(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?>\s*", stripped)
+            if PARAGRAPH_HTML_BLOCK.match(line) or (generic_tag and not current):
+                flush()
+                html_to_blank = True
+                continue
+            if re.match(r" {0,3}\[[^\]]+\]:", line):
+                raise ParagraphUnsupported("参照定義または拡張構文")
+            current.append((number, line))
+        flush()
+        if html_end:
+            raise ParagraphUnsupported("閉じない HTML block")
+    except ParagraphUnsupported as error:
+        return None, dict(status="unmeasured", reason=str(error))
+    return rows, dict(status="measured", reason=None)
+
+
+def paragraph_result(text, unmeasured_reason=None):
+    rows, state = (None, dict(status="unmeasured", reason=unmeasured_reason)) if unmeasured_reason else paragraph_measure(text)
+    stats = dict(paragraph_count=None, paragraph_max_sentences=None, paragraph_max_chars=None)
+    hits = None
+    if rows is not None:
+        stats = dict(paragraph_count=len(rows),
+                     paragraph_max_sentences=max((r["sentences"] for r in rows), default=0),
+                     paragraph_max_chars=max((r["chars"] for r in rows), default=0))
+        hits = [dict(row, severity="weak") for row in rows
+                if row["sentences"] >= PARAGRAPH_SENTENCES or row["chars"] >= PARAGRAPH_CHARS]
+    return dict(paragraph_length=hits, paragraph_measurement=state), stats
+
+
+def paragraph_baseline(baseline, current):
+    """移動の同一性は追わず、計測済みの統計だけを比較する。"""
+    if "paragraph_measurement" not in baseline:
+        return dict(status="not_comparable", reason="旧 baseline に段落計測の情報がない")
+    names = ("paragraph_count", "paragraph_max_sentences", "paragraph_max_chars")
+    for data in (baseline, current):
+        state = data.get("paragraph_measurement")
+        if not isinstance(state, dict) or state.get("status") not in ("measured", "unmeasured"):
+            return dict(status="not_comparable", reason="baseline の段落計測状態の形式が不正")
+        if state["status"] != "measured":
+            return dict(status="not_comparable", reason="前回または今回の段落長が未計測")
+        stats, hits = data.get("stats"), data.get("paragraph_length")
+        if (not isinstance(stats, dict) or not isinstance(hits, list) or
+                any(type(stats.get(name)) is not int or stats[name] < 0 for name in names)):
+            return dict(status="not_comparable", reason="baseline の段落情報の形式が不正")
+        if stats["paragraph_count"] < len(hits):
+            return dict(status="not_comparable", reason="baseline の段落件数が不整合")
+        for hit in hits:
+            if (not isinstance(hit, dict) or hit.get("severity") != "weak" or
+                    any(type(hit.get(name)) is not int or hit[name] < 1
+                        for name in ("line", "end_line", "chars", "sentences")) or
+                    hit["line"] > hit["end_line"] or
+                    (hit["sentences"] < PARAGRAPH_SENTENCES and hit["chars"] < PARAGRAPH_CHARS)):
+                return dict(status="not_comparable", reason="baseline の段落明細の形式が不正")
+    previous = {name: baseline["stats"][name] for name in names}
+    following = {name: current["stats"][name] for name in names}
+    previous["paragraph_hits"] = len(baseline["paragraph_length"])
+    following["paragraph_hits"] = len(current["paragraph_length"])
+    return dict(status="comparable", baseline=previous, current=following,
+                delta={name: following[name] - previous[name] for name in previous})
+
+
+def summarize_paragraphs(result):
+    state = result["paragraph_measurement"]
+    out = ["=== 通常段落の長さ（弱） ===",
+           "目安: 5 文相当以上または 250 字以上。論点のまとまりを確認し、長さだけで違反にしない。"]
+    if state["status"] != "measured":
+        out.append("未計測（該当 0 件ではない）: " + state["reason"])
+        return "\n".join(out)
+    stats = result["stats"]
+    out.append(f"対象 {stats['paragraph_count']} 段落 / 該当 {len(result['paragraph_length'])} 件 / "
+               f"最大 {stats['paragraph_max_sentences']} 文相当・{stats['paragraph_max_chars']} 字")
+    for hit in result["paragraph_length"]:
+        out.append(f"  L{hit['line']}-L{hit['end_line']}: [弱] {hit['sentences']} 文相当 / {hit['chars']} 字")
+    return "\n".join(out)
+
+
+def summarize_paragraph_baseline(comparison):
+    if comparison["status"] != "comparable":
+        return "=== 段落の baseline 比較 ===\n比較不能: " + comparison["reason"]
+    out = ["=== 段落の baseline 比較（位置の同一性を追わない） ==="]
+    for name, previous in comparison["baseline"].items():
+        out.append(f"{name}: 前回 {previous} → 今回 {comparison['current'][name]} "
+                   f"(差 {comparison['delta'][name]:+d})")
+    return "\n".join(out)
+
+
 def prose_text(lines) -> str:
     """地の文。表の行・コードフェンス・見出しを除き、インラインコードを取り除いた本文。"""
     return "\n".join(line for _, line in prose_lines(lines))
@@ -366,7 +811,7 @@ def is_quotish(line: str) -> bool:
     return bool(re.match(r"[-*+]?\s*(素の文体|Before|悪い例|例|適用後|After)\s*[:：]", stripped))
 
 
-def scan(text: str, profile=None):
+def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=None):
     reference = profile == "reference"
     weak_by_category = _REFERENCE_WEAK_BY_CATEGORY if reference else _WEAK_BY_CATEGORY
     lines = text.splitlines()
@@ -445,6 +890,10 @@ def scan(text: str, profile=None):
         "dash_per_1000_chars": round(dashes * 1000 / prose_chars, 1),
     }
 
+    paragraphs, paragraph_stats = paragraph_result(
+        text if paragraphs_source is None else paragraphs_source, paragraphs_unmeasured)
+    stats.update(paragraph_stats)
+
     if reference:
         return {
             "profile": "reference",
@@ -457,6 +906,7 @@ def scan(text: str, profile=None):
             "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
             "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
             "stats": stats,
+            **paragraphs,
         }
 
     return {
@@ -485,6 +935,7 @@ def scan(text: str, profile=None):
         "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
         "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
         "stats": stats,
+        **paragraphs,
     }
 
 
@@ -755,7 +1206,7 @@ def summarize(result):
     out = []
     out.append("=== 定着レビュー 機械スキャン ===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用悪例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記。違反断定でなく文脈判断)")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・通常段落の長さ。違反断定でなく文脈判断)")
     out.append("")
     out.append(f"太字などの強調      : {len(r['principle_7_bold_emphasis'])} 箇所  (原則 7: 2 箇所以上で違反疑い)")
     out.append(f"前置きフィラー      : {_count_label(r['principle_1_fillers'])}    (原則 1)")
@@ -794,6 +1245,7 @@ def summarize(result):
         out.append("")
     _append_symbol_detail(out, r["symbol_notation"])
     _append_weak_phrase_detail(out, r)
+    out.append(summarize_paragraphs(r))
     return "\n".join(out)
 
 
@@ -802,7 +1254,7 @@ def summarize_reference(result):
     out = []
     out.append("=== 参照文書 機械スキャン（--profile reference）===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記。違反断定でなく文脈判断。")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・通常段落の長さ。違反断定でなく文脈判断。")
     out.append(" 手順の「〜してください」と箇条書き先頭のラベルの太字は数えない)")
     out.append("")
     sections = [
@@ -833,6 +1285,7 @@ def summarize_reference(result):
         out.append("")
     _append_symbol_detail(out, r["symbol_notation"])
     _append_weak_phrase_detail(out, r)
+    out.append(summarize_paragraphs(r))
     return "\n".join(out)
 
 
@@ -846,18 +1299,24 @@ def main():
                     help="原文と比較し、書き直しで消えた数字とインラインコードを出力")
     ap.add_argument("--profile", choices=["reference"],
                     help="参照系技術文書向けの設定（README・Issue・手順書など。日本語文書のみ）")
+    ap.add_argument("--paragraphs-unmeasured", metavar="REASON",
+                    help="抽出本文の段落構造を復元できない理由。段落長だけ未計測とする")
     args = ap.parse_args()
+    if args.paragraphs_unmeasured is not None and not args.paragraphs_unmeasured.strip():
+        ap.error("--paragraphs-unmeasured には理由が必要です")
 
     with open(args.file, encoding="utf-8") as f:
-        text = unicodedata.normalize("NFC", f.read())
+        original_text = f.read()
+        text = unicodedata.normalize("NFC", original_text)
 
-    result = scan(text, args.profile)
+    # 旧語彙検査の NFC は維持し、段落の codepoint 数だけ原表示文字から数える。
+    result = scan(text, args.profile, args.paragraphs_unmeasured, original_text)
+    paragraph_comparison = None
     diff = None
     if args.baseline:
-        diff = baseline_diff(
-            load_baseline(args.baseline, args.profile), result,
-            PROFILE_FINDING_KEYS[args.profile],
-        )
+        baseline = load_baseline(args.baseline, args.profile)
+        diff = baseline_diff(baseline, result, PROFILE_FINDING_KEYS[args.profile])
+        paragraph_comparison = paragraph_baseline(baseline, result)
     kept = None
     if args.preserve:
         kept = preserve_diff(load_preserve(args.preserve), text)
@@ -867,6 +1326,7 @@ def main():
             result = dict(result)
         if diff is not None:
             result["baseline_diff"] = diff
+            result["paragraph_baseline"] = paragraph_comparison
         if kept is not None:
             result["preserve_diff"] = kept[0]
         json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
@@ -875,6 +1335,7 @@ def main():
         print(summarize_reference(result) if args.profile == "reference" else summarize(result))
         if diff is not None:
             print(summarize_diff(diff))
+            print(summarize_paragraph_baseline(paragraph_comparison))
         if kept is not None:
             if diff is not None:
                 print()
