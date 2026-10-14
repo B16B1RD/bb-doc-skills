@@ -1,6 +1,6 @@
 # 段落の関係と文脈を持たない読み手の点検
 
-tech-write・retention-write の納品前と、tech-review・retention-review の監査で行う。
+tech-write・retention-write・explain の納品前と、tech-review・retention-review の監査で行う。
 同じディレクトリの `reasoning.md` を Read し、その規則を段落のつながりにも適用する。
 語の検出結果とは別に本文を読み、正規表現のヒットだけで判定しない。
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- Run the tech-write readability pass on explain pages before delivery to reduce AI-sounding prose.
+- Omit the empty "where the analogy breaks" section from explain pages that use no analogy.
+
 ## 0.2.0
 
 - Treat PR descriptions as a document type and keep paragraphs focused on one point while preserving information.

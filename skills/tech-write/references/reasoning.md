@@ -1,6 +1,6 @@
 # 論証・読み手の負荷・視点の共通規則
 
-tech-write・tech-review・retention-write・retention-review の執筆と監査で使う。
+tech-write・tech-review・retention-write・retention-review の執筆と監査、explain の納品前の点検で使う。
 語や記号の検出は `style.md`、文書種別ごとの構成は各スキルの原則に従う。
 本ファイルは、その文の根拠・成立条件・主語と、読者が理解に必要とする情報を点検するための規則を定める。
 
