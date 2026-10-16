@@ -10,8 +10,8 @@ Choose a skill by the job your reader needs to do:
 |---|---|
 | `retention-write` | Writing proposals, design notes, and other prose that conveys a decision or argument |
 | `retention-review` | Reviewing that prose for reasoning, structure, and Japanese style |
-| `tech-write` | Writing reference documents such as READMEs, issues, procedures, and comments |
-| `tech-review` | Reviewing reference documents against their purpose and style rules |
+| `tech-write` | Writing reference documents such as READMEs, issues, procedures, and comments, and summarizing papers or articles without adding the writer's opinion |
+| `tech-review` | Reviewing reference documents against their purpose and style rules, including checking paper or article summaries against the source |
 | `explain` | Explaining a topic in a local HTML page with diagrams, verification status, and limits of analogies |
 
 The skill instructions and style checks are Japanese. An English README does not imply equivalent English style checking. All five skills, their shared references, and the [writing principles](memorable-doc-principles.md) ship together.
