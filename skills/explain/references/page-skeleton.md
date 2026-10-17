@@ -281,50 +281,69 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 
 トークンを `:root` に定義し、本文とパネルは必ずトークン経由で色を引く。生の色値を要素に直書きしない。
 
+文書の種類ごとに、書体とアクセント色を次の 1 組に固定する。explain・retention-write・tech-write のどれが
+作ったページかで行を選び、下の雛形の `--font-body` / `--font-head` / `--font-mono` と、`:root` と暗い側
+2 箇所の `--accent` / `--hi` / `--mark` をその行の値に差し替える。ほかのトークンと規則は 3 スキルで共通に
+使う。行に無い書体や色を足さない。
+
+| スキル | 本文の書体 | 見出しの書体 | コードの書体 | アクセント（ライト / ダーク） | `--hi`・`--mark`（ライト / ダーク） |
+|--------|-----------|-------------|-------------|------------------------------|-----------------------------------|
+| explain | Noto Sans JP | Noto Sans JP | Source Code Pro | 青 `#1f5fbf` / `#6fa3ef` | `#dde8f8` / `#1d3150` |
+| retention-write | 本文 Noto Serif JP | Noto Serif JP | Source Code Pro | 藍 `#2c4a7a` / `#8fb0e6` | `#e1e7f1` / `#24324a` |
+| tech-write | IBM Plex Sans JP | IBM Plex Sans JP | IBM Plex Mono | 緑 `#1a7f37` / `#3fb950` | `#dcf0e1` / `#1c3524` |
+
+地・字・線・面・罫は無彩色にし、色を持つのはアクセントと、そこから作った淡い `--hi` / `--mark` だけにする。
+クリーム色の地とテラコッタのアクセントの組は、生成 AI の画面の配色そのもので、ひと目で AI が作ったページに
+見えるので使わない。地を黄みに寄せたり、アクセントを橙・赤茶に寄せたりもしない。
+
 テーマは 3 状態ある。閲覧者が明示的に選ぶと根要素に `data-theme="dark"` か `data-theme="light"` が
 付き、既定（システム任せ）では何も付かず `prefers-color-scheme` だけが手がかりになる。3 つとも成り
-立たせるため、次の順で書く。
+立たせるため、次の順で書く。雛形の書体と色は explain の行の値である。
 
 ```html
 <style>
   /* 1. 明るい側の完全な定義。ここだけで全トークンが揃う */
   :root {
-    --bg: #fdfbf6;
-    --fg: #2b2a28;
-    --muted: #6b6862;
-    --line: #2b2a28;        /* SVG の線 */
-    --fill: #e8e6e1;        /* SVG の面。淡いグレー */
-    --accent: #c2410c;
-    --rule: #e2ddd2;        /* 罫線・区切り */
-    --mark: #f3e6c4;        /* 着地した事実行の目印 */
-    --font-sans: "Noto Sans JP", "Hiragino Sans", system-ui, sans-serif;
+    --bg: #ffffff;
+    --fg: #222222;
+    --muted: #5c5c5c;
+    --line: #222222;        /* SVG の線 */
+    --fill: #f2f2f2;        /* SVG の面。地に近い無彩色 */
+    --accent: #1f5fbf;
+    --hi: #dde8f8;          /* SVG の強調する 1 か所の面。アクセントを薄めた色 */
+    --rule: #dadada;        /* 罫線・区切り */
+    --mark: #dde8f8;        /* 着地した事実行の目印 */
+    --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    --font-head: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
     --font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 
   /* 2. システムが暗いとき。ただし閲覧者が light を選んでいたら適用しない */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #1d1b18;
-      --fg: #f2ece1;
-      --muted: #a8a196;
-      --line: #f2ece1;
-      --fill: #4a4742;
-      --accent: #fb923c;
-      --rule: #3a362f;
-      --mark: #4a3d28;
+      --bg: #171717;
+      --fg: #e6e6e6;
+      --muted: #9e9e9e;
+      --line: #e6e6e6;
+      --fill: #262626;
+      --accent: #6fa3ef;
+      --hi: #1d3150;
+      --rule: #363636;
+      --mark: #1d3150;
     }
   }
 
   /* 3. 閲覧者が dark を明示したとき。明るいシステムでも適用される */
   :root[data-theme="dark"] {
-    --bg: #1d1b18;
-    --fg: #f2ece1;
-    --muted: #a8a196;
-    --line: #f2ece1;
-    --fill: #4a4742;
-    --accent: #fb923c;
-    --rule: #3a362f;
-    --mark: #4a3d28;
+    --bg: #171717;
+    --fg: #e6e6e6;
+    --muted: #9e9e9e;
+    --line: #e6e6e6;
+    --fill: #262626;
+    --accent: #6fa3ef;
+    --hi: #1d3150;
+    --rule: #363636;
+    --mark: #1d3150;
   }
 
   /* body の背景は必ず明示する。透明のままだと閲覧環境の地の色が透ける。
@@ -332,26 +351,56 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--font-sans);
+    font-family: var(--font-body);
     font-size: 1.0625rem;  /* 既定 16px 環境で 17px。px 直書きは読者の文字サイズ設定を上書きする */
     line-height: 1.8;
+    max-width: 40em;       /* 1 行を全角 40 字前後に収める */
+    line-break: strict;    /* 小書きの仮名や長音符を行頭に送らない */
+    text-autospace: normal; /* 和文と欧文・数字の間に四分の空きを入れる */
+    font-synthesis: none;  /* 読み込んでいない太さを偽の太字で作らせない */
   }
 
-  /* 定義したトークンは必ずどこかで使う。使わないトークンは次の生成で値がずれる */
+  /* 詰め組・行の釣り合い・文節での改行は見出しにだけ掛ける。本文に掛けると字間と行末がそろわない */
+  h1, h2, h3 {
+    font-family: var(--font-head);
+    font-weight: 700;
+    line-height: 1.45;
+    font-feature-settings: "palt";
+    text-wrap: balance;
+    word-break: auto-phrase;
+    margin: 2.2em 0 .6em;
+  }
+  h1 { font-size: 1.75rem; margin-top: 0; }
+  h2 { font-size: 1.35rem; padding-bottom: .3em; border-bottom: 1px solid var(--rule); }
+  h3 { font-size: 1.1rem; }
+
+  /* 定義したトークンは必ずどこかで使う。使わないトークンは次の生成で値がずれる。
+     --hi は inline SVG の強調する 1 か所の fill で使う */
+  a { color: inherit; text-decoration-color: var(--muted); text-underline-offset: .2em; }
+  a:hover { color: var(--accent); }
   .panel .claim { font-size: 1.15em; }
   .panel { scroll-margin-top: 5rem; }
   .panel:target { outline: 2px solid var(--accent); outline-offset: .5rem; }
   .note { color: var(--muted); font-size: .95em; margin: 0 0 .2em; }
   .pin { color: var(--muted); font-size: .9em; }
-  .pin a, .facts a { color: var(--accent); }
-  .facts th, .facts td { border-bottom: 1px solid var(--rule); padding: .5em .7em; text-align: left; }
-  .facts th { color: var(--muted); font-weight: 600; }
+  .pin a { color: var(--accent); }
+  table { border-collapse: collapse; }
+  th, td {
+    border-bottom: 1px solid var(--rule);
+    padding: .5em .7em;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: normal;  /* 語の途中で折らない */
+    word-break: keep-all;   /* 文節の途中で折らない。収まらない表は .scroll-x の中で横にスクロールする */
+  }
+  th { color: var(--muted); font-weight: 700; }
+  td code, th code { white-space: nowrap; }
   .facts tbody tr { scroll-margin-top: 5rem; }
   .facts tbody tr:target { background: var(--mark); }
   @media (prefers-reduced-motion: no-preference) {
     html { scroll-behavior: smooth; }
   }
-  hr.stairs { border: 0; border-top: 2px solid var(--rule); margin: 3rem 0 1rem; }
+  hr.stairs { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0 1rem; }
   .stairs-note { color: var(--muted); }
   .quiz summary { color: var(--accent); cursor: pointer; }
   .level-note { color: var(--muted); }
@@ -362,11 +411,46 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 2 段目の `:not([data-theme="light"])` を落とすと、暗いシステムで明るいテーマを選んだ閲覧者に暗い色が
 出る。トークンが 3 箇所に並んでいても 3 状態にならないので、この guard は省略しない。
 
-見た目の既定は技術図解調にする。SVG の輪郭は細め、角は控えめに丸め、面は淡いグレー、色は 1 色。字と
-罫の既定は上の雛形が持つので、散文で言い直さずそのまま使う。トークン名も上の例の
-`--bg` / `--fg` / `--muted` / `--line` / `--fill` / `--accent` / `--rule` / `--mark` を使い回し、毎回の生成で
-同じ系統の見た目にする。線幅・角丸・図内の字の大きさは「inline SVG の規則」が、表示幅の上限は
-「レイアウト」が決める。
+### 書体の読み込みと太さ
+
+`font-synthesis: none` と、Google Fonts の読み込み URL のウェイト指定 `wght@400;700` は対で使う。
+`font-synthesis: none` はブラウザが太字を合成するのを止めるので、700 を読み込まずに書くと見出しと
+`<strong>` が太字にならない。逆に 400 と 700 を読み込んでも `font-synthesis: none` を書かないと、
+読み込みが遅れたときや代替フォントで、ブラウザが字を太らせて潰れた太字を出す。片方だけでは使わない。
+CSS の `font-weight` も 400 と 700 の 2 つだけにする（600 などは読み込んでいないので、近い太さへ丸められる）。
+
+`<link>` の URL は、表の行の書体を 400 と 700 で読む次の形にする。
+
+| スキル | `<link>` の `href` |
+|--------|-------------------|
+| explain | `https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Source+Code+Pro:wght@400;700&display=swap` |
+| retention-write | `https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Source+Code+Pro:wght@400;700&display=swap` |
+| tech-write | `https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap` |
+
+代替フォントの並びは、retention-write の明朝では `"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif`、
+tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif` と
+`"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace` にする。
+
+### 組版の既定
+
+本文と見出しで、日本語の組版の規則を分ける。
+
+- 本文（`body`）：行の幅は `max-width: 40em`、`line-break: strict`、`text-autospace: normal`。
+  1 行を 40 字前後に保ち、行頭の禁則を厳しくし、和文と欧文の間を空ける
+- 見出し（`h1`〜`h3`）だけ：`font-feature-settings: "palt"`（詰め組）、`text-wrap: balance`（行の長さの釣り合い）、
+  `word-break: auto-phrase`（文節での改行）。本文の `body`・`p`・`li` には掛けない。本文で詰めると字間が
+  不ぞろいになり、`balance` は長い段落の行末をがたつかせる
+- 見出しはブラウザ既定のまま置かない。大きさ・行間・上下の空きは雛形の `h1` / `h2` / `h3` の規則を使う
+- 表のセル：`overflow-wrap: normal` と `word-break: keep-all` で語や文節の途中で折らない。表の中の `code` は
+  `white-space: nowrap` にして、コマンドやパスを途中で折らない。幅に収まらない表は `.scroll-x` の中で
+  横にスクロールさせる（「レイアウト」）
+
+見た目の既定は技術図解調にする。SVG の輪郭は細め、角は控えめに丸め、面は地に近い無彩色、強調は 1 か所だけ
+アクセント系の `--hi`。字と罫の既定は上の雛形が持つので、散文で言い直さずそのまま使う。トークン名も上の例の
+`--bg` / `--fg` / `--muted` / `--line` / `--fill` / `--accent` / `--hi` / `--rule` / `--mark` /
+`--font-body` / `--font-head` / `--font-mono` を使い回し、毎回の生成で同じ系統の見た目にする。
+面を持つ要素を増やさない。枠・影・背景色を全ブロックに付けると、灰色の面だらけのページになる。
+線幅・角丸・図内の字の大きさは「inline SVG の規則」が、表示幅の上限は「レイアウト」が決める。
 
 ## 外部依存
 
@@ -375,7 +459,7 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 - **許可**：`https://fonts.googleapis.com` のスタイルシートと、そこが読む
   `https://fonts.gstatic.com` のフォント本体
 - **必須**：どの `font-family` にも代替フォントを並べる。Google Fonts が読めない環境でも崩れない
-  ことを優先する（上の `--font-sans` / `--font-mono` の形）
+  ことを優先する（上の `--font-body` / `--font-head` / `--font-mono` の形）
 - **禁止**：外部画像（`<img src="https://…">`）、外部スクリプト、`fetch` / `XHR` / WebSocket、
   および **Google Fonts 以外の**外部スタイルシート。図はすべて inline SVG で描く
 
@@ -400,21 +484,30 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 - `viewBox` を必ず付ける。付けない SVG は拡大率が計算できないので許さない。幅は雛形どおり 320 を使う
 - 幅属性は `viewBox` の幅と同じにする（`width="320"`）。CSS の `max-width` はこれを上限として切り詰め、広げない
 - `role="img"` と `aria-label` を付ける。`aria-label` にはそのパネルの一文の要旨を書く
-- 色は `var(--line)` / `var(--fill)` / `var(--accent)` で引く。生の色値を書かない（テーマが
-  切り替わったとき線と面だけ取り残される）
+- 色は `var(--line)` / `var(--fill)` / `var(--accent)` / `var(--hi)` で引く。生の色値を書かない（テーマが
+  切り替わったとき線と面だけ取り残される）。トークン名 `--line`・`--fill`・`--accent` は変えずに使う
 - 輪郭は細めにする。拡大率は「表示幅 ÷ `viewBox` 幅」である。幅属性を `viewBox` 幅と同じにすると
   デスクトップでは拡大率 1.0 になり、指定した `stroke-width` がそのまま実効の線幅になる。実効の線幅が
   1.2〜1.8px に収まる指定にする。既定は `stroke-width="1.5"`。幅属性を付け忘れたときでも、
   「レイアウト」の `max-width: min(22rem, 100%)` が天井になる。根要素の字が 16px のとき 22rem は 352px で、
   `viewBox` 幅 320 に対する拡大率は 352 ÷ 320 = 1.1 倍である
 - 角は控えめに丸める。矩形の `rx` は 4 を既定にする
-- 面は淡いグレー 1 色で、`var(--fill)` を使う
+- 面は `var(--fill)` 1 色で塗る。`--fill` の値は地（`--bg`）に近い無彩色にし、色みを持たせない。
+  面を濃くしたり色を付けたりすると、図が灰色や色の塊になって線とラベルが沈む
+- 強調は新しいトークン `--hi` で引く。そのパネルの一文が指す 1 か所だけを `fill="var(--hi)"` で塗り、
+  輪郭を `stroke="var(--accent)"` にしてよい。1 パネルに強調は 1 か所までで、`--hi` を地の代わりに使わない
 - 図に具体値（実際の値の例）を置いてよい。置く量は 1 パネルに 1 組までとする
 - 図内の主ラベルの `font-size` は 16 を既定にする。拡大率 1.0 のとき実効 16px で、本文 17px に対して
   0.94 倍に収まる。従ラベル（括弧内の用語）は主より小さくする。主ラベルの既定 16 は動かさない。
   はみ出した字を小さくして箱に収めない
 
 ## レイアウト
+
+本文の行の幅は `max-width: 40em`（全角 40 字前後）にする。図と explain のパネルの容器（`figure`）は、
+本文の 40em より広い 52rem まで本文の外へ張り出してよい。本文の列の中央を保ったまま左右へ同じだけ
+広げるので、張り出しは負の `margin-inline` で作る。画面が 52rem より狭いときは画面の幅（左右の余白を
+除く）が上限になり、張り出しは無くなる。張り出すのは容器であって、パネルの一文・添え書き・根拠ピンは
+容器の中で本文と同じ 40em に収める。
 
 ページ本体は横スクロールさせない。横に長くなりうるもの — 事実リストの表とコードブロック — は
 `overflow-x: auto` の容器に入れ、容器の中だけがスクロールするようにする。図は容器に入れず、
@@ -431,7 +524,16 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 pre { overflow-x: auto; }
 img, svg { max-width: 100%; height: auto; }
 figure.panel svg { max-width: min(22rem, 100%); }
-body { max-width: 46rem; margin: 0 auto; padding: 2rem 1rem; }
+body { max-width: 40em; margin: 0 auto; padding: 2rem 1rem; }
+/* 図とパネルの容器だけを 52rem まで本文の外へ張り出す。狭い画面では画面の幅で止まる */
+figure {
+  --wide: min(52rem, 100vw - 2rem);
+  width: var(--wide);
+  max-width: none;
+  margin-inline: calc((100% - var(--wide)) / 2);
+}
+figure > svg { display: block; margin-inline: auto; }
+figure > figcaption { max-width: 40em; margin-inline: auto; }
 ```
 
 `overflow-x: auto` の容器はマウス以外でも操作できるようにする。`tabindex="0"` と `role="region"` と
