@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+- explain now estimates text width before placing boxes and arrow labels in its figures, so a label no longer overlaps the boxes on either side and box text stays inside the box. It also renders the page and checks it with the same screenshot procedure and visual checklist as retention-write and tech-write, and reports when no screenshot tool was available.
+- explain now shows how many facts it did not fact-check because of the claim limit, both in the delivery report ("上限で裏取りせず <n> 件") and in the verification summary on the page. The legend gains a matching entry and no longer refers to letters that do not appear on the page.
+- tech-review now puts suggested rewrites in their own section after the findings table instead of inside table cells, so the report no longer shows raw `<br>` tags in the terminal.
+- In HTML output from explain, retention-write, and tech-write, dates and version numbers such as 1873-01-01 are wrapped so they no longer break after a hyphen in headings or body text.
+
 ## 0.7.1
 
 - Add a 56-second demo video near the top of the README, in both the English and Japanese versions. It shows each of the five skills running in Claude Code with the published plugin, with the work sped up. The skills themselves do not change in this version.
