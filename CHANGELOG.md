@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0
+
+- The reader check used by all five skills now accepts a reader's reply only when it arrives through the host's completion notice or tool result. A result that appears in the parent's own message, or one received before the completion notice, is not treated as the reader's reply. A reply whose reported end time is later than the parent's collection time is discarded and not used for decisions or fixes. In both cases the launch still counts, and a reply that never arrives is reported as not collected.
+
 ## 0.8.0
 
 - explain now estimates text width before placing boxes and arrow labels in its figures, so a label no longer overlaps the boxes on either side and box text stays inside the box. It also renders the page and checks it with the same screenshot procedure and visual checklist as retention-write and tech-write, and reports when no screenshot tool was available.
