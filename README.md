@@ -4,6 +4,10 @@ Five Japanese writing, review, and visual explanation skills for Claude Code.
 
 [日本語](README.ja.md)
 
+A 56-second demo video. It shows each of the five skills running in Claude Code with the published plugin, with the work sped up. The requests and the output are in Japanese.
+
+https://github.com/user-attachments/assets/96a6f9f3-4dbb-4fa6-b1c6-c713486cf6e4
+
 Choose a skill by the job your reader needs to do:
 
 | Skill | Use it for |

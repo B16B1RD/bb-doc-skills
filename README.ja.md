@@ -4,6 +4,10 @@ Claude Code で使う、日本語の執筆・レビュー・図解の 5 スキ�
 
 [English](README.md)
 
+紹介動画（56 秒）です。5 つのスキルを、公開版を入れた Claude Code で実際に動かして録りました。作業の部分は早送りです。
+
+https://github.com/user-attachments/assets/96a6f9f3-4dbb-4fa6-b1c6-c713486cf6e4
+
 読者が何をするための文書かに合わせて、スキルを選びます。
 
 | スキル | 用途 |

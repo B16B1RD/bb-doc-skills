@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- Add a 56-second demo video near the top of the README, in both the English and Japanese versions. It shows each of the five skills running in Claude Code with the published plugin, with the work sped up. The skills themselves do not change in this version.
+
 ## 0.7.0
 
 - Change the look of the HTML output from explain, retention-write, and tech-write so it no longer reads as AI-generated at a glance. The cream background and terracotta accent are gone. Each skill now uses one fixed pair of typefaces and accent color: explain uses Noto Sans JP with blue, retention-write uses Noto Serif JP with indigo, and tech-write uses IBM Plex Sans JP and IBM Plex Mono with green. Japanese typesetting rules are shared by all three: body lines are limited to 40em, strict line breaking and spacing between Japanese and Latin text apply to the body, and proportional spacing, balanced wrapping, and phrase-based line breaks apply to headings only. Table cells no longer break words, and figures and explain panels can extend to 52rem.
