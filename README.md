@@ -1,28 +1,26 @@
 # bb-doc-skills
 
-Five Japanese writing, review, and visual explanation skills for Claude Code.
+Claude Code で使う、日本語の執筆・レビュー・図解の 5 スキルです。
 
-[日本語](README.ja.md)
-
-A 56-second demo video. It shows each of the five skills running in Claude Code with the published plugin, with the work sped up. The requests and the output are in Japanese.
+紹介動画（56 秒）です。5 つのスキルを、公開版を入れた Claude Code で実際に動かして録りました。作業の部分は早送りです。
 
 https://github.com/user-attachments/assets/96a6f9f3-4dbb-4fa6-b1c6-c713486cf6e4
 
-Choose a skill by the job your reader needs to do:
+読者が何をするための文書かに合わせて、スキルを選びます。
 
-| Skill | Use it for |
+| スキル | 用途 |
 |---|---|
-| `retention-write` | Writing proposals, design notes, and other prose that conveys a decision or argument |
-| `retention-review` | Reviewing that prose for reasoning, structure, and Japanese style |
-| `tech-write` | Writing reference documents such as READMEs, issues, procedures, and comments, summarizing papers or articles without adding the writer's opinion, and researching and writing comparison or measurement reports that show how each fact was checked, and technical topic overviews such as Git Flow that cite a source for each fact without adding the writer's evaluation |
-| `tech-review` | Reviewing reference documents against their purpose and style rules, including checking paper or article summaries against the source and checking research reports for how each fact was verified, and checking technical topic overviews for sources and dates |
-| `explain` | Explaining a topic in a local HTML page with diagrams, verification status, and limits of analogies |
+| `retention-write` | 提案書・設計メモなど、判断や主張を伝える散文を書く |
+| `retention-review` | その散文の論証・構成・日本語の文体をレビューする |
+| `tech-write` | README・Issue・手順書・コメントなどの参照文書と、書き手の意見を足さない論文・記事の紹介を書く。比較や計測の調査も自分で行い、確かめた方法を添えた調査レポートを書く。Git Flow のような技術トピックの解説も、出典を添えて書き手の評価を足さずに書く |
+| `tech-review` | 参照文書を目的と文体の原則に沿ってレビューし、論文・記事の紹介は原典と照合し、調査レポートは確かめた方法をたどり直し、技術トピックの解説は出典と時点を確かめる |
+| `explain` | 図・裏取りの状態・比喩の限界を持つローカル HTML で題材を説明する |
 
-The skill instructions and style checks are Japanese. An English README does not imply equivalent English style checking. All five skills, their shared references, and the [writing principles](memorable-doc-principles.md) ship together.
+スキルの指示と文体検査は日本語です。5 スキル、共有 references、[文書設計の規範](memorable-doc-principles.md)をまとめて配布します。
 
-## Install
+## 導入
 
-From your shell (user scope):
+shell から user scope へ導入します。
 
 ```sh
 claude plugin marketplace add B16B1RD/bb-doc-skills
@@ -30,28 +28,28 @@ claude plugin install bb-doc-skills@bb-doc-skills-marketplace --scope user
 claude plugin list
 ```
 
-Start a new session after installation, then invoke a skill with its plugin prefix:
+導入後に新しいセッションを開始し、プラグイン名を付けて呼び出します。
 
 ```text
-/bb-doc-skills:retention-write Draft a proposal from these facts and the decision we need to make.
-/bb-doc-skills:retention-review Review proposal.md and explain what needs to change.
-/bb-doc-skills:tech-write Write a README from this repository's actual behavior.
-/bb-doc-skills:tech-review Review README.md against the repository.
-/bb-doc-skills:explain Explain DNS for a middle-school reader.
+/bb-doc-skills:retention-write この事実と決めたいことを基に提案書を書いて。
+/bb-doc-skills:retention-review proposal.md をレビューし、直すべき点を説明して。
+/bb-doc-skills:tech-write このリポジトリの実際の動作を基に README を書いて。
+/bb-doc-skills:tech-review README.md をリポジトリと照らしてレビューして。
+/bb-doc-skills:explain DNS を中学生向けに説明して。
 ```
 
-Supply the source material, intended audience, and output path with your request. Keep all five skills together because they share references and the scanner. For plugin management, see the [official instructions](https://code.claude.com/docs/en/discover-plugins).
+依頼には、元の資料・想定読者・保存先も添えてください。共有 references とスキャナーを使うため、5 スキルはまとめて配置します。プラグインの管理方法は[公式の案内](https://code.claude.com/docs/en/discover-plugins)を参照してください。
 
-## Migrate from the old symlink deployment
+## 旧 symlink 配備からの移行
 
-New users skip symlink removal and go straight to Install. Developers who keep symlinks should not enable the public plugin at the same time. The following steps are for existing users, using a POSIX shell and Python 3.
+初めて導入する人は、この節のリンク解除を行わず「導入」へ進んでください。開発用 symlink を続ける人は、公開版を同時に有効化しません。既存利用者だけが以下を行います。POSIX の shell と Python 3 を使う手順です。
 
-### 1. Inspect and record the targets
+### 1. 対象と復元先を記録する
 
-Change to your existing doc-skills checkout before running this. Confirm that `DOC_SKILLS_ROOT` is the root containing the original skill files. Stop for a regular directory, regular file, unexpected link, or broken link and inspect it individually. Do not move or delete source files. Only after all five links match the expected checkout does this read-only check save their original link strings and resolved targets.
+旧配備の実体がある自分の doc-skills checkout へ移動してから実行します。`DOC_SKILLS_ROOT` がその実体の root であることを確認してください。通常ディレクトリ・通常ファイル・想定外のリンク・切れたリンクなら停止し、個別に対象を確認します。実体を移動・削除しません。旧リンクの位置とリンク先を確認し、全 5 件が想定と一致した場合だけ復元用 JSON を作ります。
 
 ```sh
-# Run from your existing doc-skills checkout.
+# 既存の doc-skills の checkout で実行します。
 export DOC_SKILLS_ROOT="$(pwd -P)"
 export DOC_SKILLS_BACKUP="$PWD/old-doc-skills-links.json"
 python3 - <<'PYTHON'
@@ -77,11 +75,11 @@ print("Checked and recorded all five symlinks; nothing removed.")
 PYTHON
 ```
 
-Open `old-doc-skills-links.json` and confirm all five link strings and resolved targets. It contains your actual deployment locations: keep it locally; do not publish or send it externally. Existing records are not overwritten. If that filename exists, set `DOC_SKILLS_BACKUP` to another filename and rerun the inspection.
+`old-doc-skills-links.json` を開いて、5 件のリンク先と解決後の実体を確認してください。実際の配置情報が含まれるので、自分の手元だけに保管し、公開・外部送信しません。既存の同名記録は上書きしません。記録先が既にあれば別名を `DOC_SKILLS_BACKUP` に指定してやり直します。
 
-### 2. Remove each confirmed link individually
+### 2. 確認したリンクを 1 件ずつ外す
 
-Use the same shell. `name` below selects one skill. Change it and run once for each of `retention-write`, `retention-review`, `tech-write`, `tech-review`, and `explain`, in that order. Stop if a link no longer matches its record. Source files, unrelated skills, and settings are retained.
+上と同じ shell で実行します。次の `name` は 1 件の名前です。`retention-write`、`retention-review`、`tech-write`、`tech-review`、`explain` の順に、名前を変えて 1 件ずつ実行してください。記録時のリンクと一致しなければ停止します。実体・無関係なスキル・設定は削除しません。
 
 ```sh
 name=retention-write
@@ -103,17 +101,17 @@ print(f"Removed only the {name} symlink.")
 PYTHON
 ```
 
-Confirm that only the five old links are absent and that their source files and unrelated skills remain. On a partial failure, record which names were removed and follow Roll back. Do not use `rm -r`, `rm -rf`, or remove a link target.
+解除後、5 件の旧リンクだけがなく、実体と無関係なスキルが残っていることを確認します。作業途中で失敗したら、解除済みの名前を控えて「失敗時に戻す」へ進みます。`rm -r`、`rm -rf`、リンク先の削除は使いません。
 
-### 3. Install and check for duplicates and readable references
+### 3. 公開版を導入し、重複と参照を確認する
 
-Run the Install commands and start a new Claude Code session. In `claude plugin list`, check the version, scope, and enabled status of `bb-doc-skills@bb-doc-skills-marketplace`. In the `/` menu, confirm that each of the five skills appears once under `bb-doc-skills:` and that the old skills serving the same purpose are absent. If this plugin is enabled at another scope, stop and inspect that registration first.
+「導入」のコマンドを実行し、新しい Claude Code セッションを開始します。`claude plugin list` で `bb-doc-skills@bb-doc-skills-marketplace` の版・scope・enabled 状態を確認し、`/` の候補に `bb-doc-skills:` 付きの 5 スキルが各 1 件あることを確認します。旧来の同用途のスキルが残っていないことも確認してください。別 scope の同プラグインが有効なら、その設定を確認するまで操作を止めます。
 
-Try all five skills with source material and output paths. Confirm from the execution that the full `memorable-doc-principles.md` and required shared references were read from the same distribution root. The principles are bundled once at the root and resolved from the skill's actual directory. File existence alone is not a successful read. A failed installation, unreadable principles or references, or remaining duplicates means migration is incomplete: roll back.
+元の資料と保存先を渡し、5 スキルをそれぞれ試します。実行中に、規範 `memorable-doc-principles.md` の全文と必要な共有 references を同じ配布ルートから読めたことを確認してください。規範はルートに 1 部あり、スキルの実体から解決します。存在確認だけで読取成功にしません。規範・参照が読めない、導入が失敗する、二重登録が残る場合は移行完了にせず、復元へ進みます。
 
-## Update
+## 更新
 
-For a published new version, update the marketplace first, then update the plugin at the same user scope. Do not edit installed plugin files directly.
+公開された新版を使うときは、marketplace の情報を更新してから同じ user scope の plugin を更新します。インストール済みファイルを直接編集しません。
 
 ```sh
 claude plugin marketplace update bb-doc-skills-marketplace
@@ -121,11 +119,11 @@ claude plugin update bb-doc-skills@bb-doc-skills-marketplace --scope user
 claude plugin list
 ```
 
-In a new session, confirm that the displayed version matches the intended release, all five skills are recognized, and the principles and shared references remain readable. If the version did not change, updating failed, or references cannot be read, do not report success: record the failure and roll back or retain the existing version. Installation and updates require a release in the public repository. A local-candidate check is separate from installation through GitHub.
+更新後は新しいセッションで、表示された版が配布予定の版へ変わり、5 スキルの認識と規範・共有資料の読取りが継続していることを確認します。版が変わらない、更新が失敗する、参照に失敗する場合は成功とせず、失敗内容を控えて復元するか、既存の版を維持します。公開リポジトリへ版が配布されるまでは導入・更新できません。ローカル候補での確認は GitHub 経由の公開導入とは区別します。
 
-## Roll back
+## 失敗時に戻す
 
-Disable and uninstall the public plugin installed by these steps at user scope. Do not change unrelated plugins or settings at other scopes. If the same plugin exists at another scope, inspect the actual registrations before deciding how to proceed.
+この手順で導入した user scope の公開版を無効化してから撤去します。他の scope の設定・無関係な plugin は変更しません。別 scope に同 plugin がある場合は、実際の登録を確認してから判断します。
 
 ```sh
 claude plugin disable bb-doc-skills@bb-doc-skills-marketplace --scope user
@@ -133,7 +131,7 @@ claude plugin uninstall bb-doc-skills@bb-doc-skills-marketplace --scope user
 claude plugin list
 ```
 
-In a new session, confirm that the plugin is no longer enabled. Then restore only the names you removed, individually, using `DOC_SKILLS_BACKUP` in the same shell. If you opened another shell, set this variable to your saved JSON file. Both absolute and relative links are restored with their original link strings. Stop without overwriting if a file, regular directory, or another link occupies a restore location.
+新しいセッションで同 plugin が有効でないことを確認してから、解除した名前だけを 1 件ずつ戻します。上と同じ shell の `DOC_SKILLS_BACKUP` を使います。shell を開き直した場合は、自分が保存した JSON をこの変数へ設定してください。絶対リンクも相対リンクも、控えた元のリンク文字列で復元します。復元先にファイル・通常ディレクトリ・別リンクがあれば上書きせず停止します。
 
 ```sh
 name=retention-write
@@ -155,51 +153,51 @@ print(f"Restored the {name} symlink.")
 PYTHON
 ```
 
-Repeat for the other removed names. In a new session, confirm that only the old five skills are recognized, their source files and unrelated skills remain, and the principles and required shared references are readable. Remaining duplicates or failed references mean rollback is incomplete. If the original source was lost, stop rather than substituting unknown files.
+解除したほかの名前でも繰り返し、新しいセッションで旧 5 スキルだけが認識され、実体・無関係なスキルが残り、規範と必要な共有資料を読めることを確認します。二重登録や参照失敗が残るなら復元完了としません。旧配備の実体が失われている場合も、未知の内容をコピーして埋めず停止します。
 
-## Requirements and behavior
+## 前提と動作
 
-Local validation uses Claude Code **2.1.292** and Python **3.12.12**. These are tested versions, not minimum supported versions. The Japanese prose scanner uses only the Python standard library; no additional Python packages are needed.
+ローカル検証には Claude Code **2.1.292** と Python **3.12.12** を使います。検証した版であり、最小対応版を表すものではありません。日本語文体のスキャナーは Python 標準ライブラリだけを使い、追加の Python パッケージは不要です。
 
-Allow Claude Code to read the plugin files and your supplied documents, run `python3` through its shell tool for scanning, and write requested outputs in your workspace. Retention and technical reviews use the scanner as a source of signals; the model still judges their context. They can also use an independent reader agent. Tool permissions remain subject to your Claude Code settings.
+Claude Code がプラグインと指定資料を読み、shell ツールで `python3` の検査を実行し、指定された成果物を利用者の作業領域へ保存できる権限が必要です。文書のレビューではスキャナーの出力をシグナルとして使い、文脈に照らした判断はモデルが行います。独立した読み手の Agent を使う場合もあります。道具の利用許可は、利用者の Claude Code の設定に従います。
 
-`explain` uses an independent Agent context and search/fetch tools to check facts before generating HTML. Context7 can help with library documentation when available; it is optional, with web search/fetch as the alternative. The plugin does not install an MCP server or supply credentials. Unavailable tools or unresolved facts remain unverified and are reported; they are not turned into verified facts. Before delivery, it also checks readability: Japanese pages go through the scanner, and every page goes through an independent reader agent.
+`explain` は、草稿と独立した Agent と検索・取得の道具で事実を裏取りしてから HTML を作ります。Context7 は利用できる場合のライブラリ文書の取得手段で、必須ではありません。使えない場合は Web の検索・取得へ進みます。このプラグインは MCP server の導入や認証情報の提供を行いません。道具が使えない場合や確認がつかない事実は、未検証として報告し、検証済みにはしません。納品前には読みやすさも点検します。日本語のページはスキャナーにかけ、どのページも独立した読み手の Agent に読ませます。
 
-HTML is saved in your workspace or at the path you specify. The default for `explain` is `explain-<slug>.html` in the current directory. An explicit request for “Artifact で” additionally asks for Artifact publishing, only where that tool is available. Artifact is not a standard requirement of Claude Code; if unavailable, the skill saves locally and reports that it did not publish. Browser-based visual checks also depend on available tools; a source-only check is reported as such.
+HTML は利用者の作業領域または指定された場所へ保存します。`explain` の既定はカレントディレクトリの `explain-<slug>.html` です。「Artifact で」と明示した場合は、その道具がある環境に限って Artifact 公開も行います。Artifact は Claude Code の標準的な必須機能ではなく、使えなければローカル保存だけを行い、未公開と報告します。ブラウザーによる目視確認も使える道具に依存し、ソースだけで確認した場合はその旨を報告します。
 
-The skills do not guarantee factual accuracy or long-term recall. Review generated documents and verification results before relying on them. The memory research informs design choices; these skills have not established those effects in AI-generated documents.
+事実の正しさや長期記憶への定着を保証するものではありません。生成した文書と裏取りの結果を確認してから使ってください。記憶研究は設計上の参考であり、その効果を AI 生成文書で実証したものではありません。
 
-## Acknowledgements
+## 謝辞
 
-The following public work informed specific parts of the design. The descriptions state the scope of that influence; they do not claim a wholesale port or reproduction of a research protocol.
+次の公開資料から、表に記した考え方を取り入れています。影響を受けた範囲を示すもので、実装全体の移植や研究手法の再現を意味しません。
 
-| Work and author | Influence |
+| 資料・著者 | 取り入れた考え方 |
 |---|---|
-| [AIっぽい文章表現大全](https://note.com/yusuke_motoyama/n/n2a1218636f56) — もとやま | Japanese style checks in the principles and writing skills. |
-| [yomiyasu](https://github.com/nanaism/yomiyasu) — nanaism | Bounded revision passes and preserving facts from the source. |
-| [japanese-tech-writing](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d/8f2d57610a73efc97d743c9b0b0ecb1002e09fa4) — k16shikano | Reasoning, reader effort, and point of view in the four writing and review skills. |
-| [編集者は日本語をどうやって推敲しているか](https://golden-lucky.hatenablog.com/entry/2026/08/20/185818) — golden-lucky | Reading paragraph relationships and locating where a reader loses the thread. |
-| [ELI5](https://github.com/anthropics/claude-plugins-community/tree/main/eli5) — Thariq Shihipar | Image-led panels with short explanations in explain. |
-| [説明スキルの比較：ELI5、Archify、Explainer](https://blog.lai.so/eli5-archify-explainer-skills/) — laiso | The comparison that prompted the following explanation design changes. |
-| [Explainer](https://github.com/mizchi/explainer) — mizchi | Through laiso's comparison: audience knowledge, unresolved questions, and checking executable examples. |
-| [Archify](https://github.com/tt-a1i/archify) — tt-a1i | Through laiso's comparison: choosing branching, state, or request/response diagrams to suit the topic. |
-| [Writes and Write-Nots](https://paulgraham.com/writes.html) — Paul Graham | Settling the author's decision and claim before polishing prose. |
-| [Diátaxis](https://diataxis.fr/) — Daniele Procida and contributors | Selecting technical writing guidance by reader purpose; the four quadrants are not reproduced as-is. |
-| [rite workflow](https://github.com/B16B1RD/cc-rite-workflow) — B16B1RD and contributors | Shared references, independent readers, and explicit fact-check verdicts. |
-| [Memory and comprehension of narrative versus expository texts: A meta-analysis](https://doi.org/10.3758/s13423-020-01853-1) — Raymond A. Mar et al. | Causal narrative structure in the shared principles. |
-| [Test-Enhanced Learning](https://doi.org/10.1111/j.1467-9280.2006.01693.x) — Henry L. Roediger III and Jeffrey D. Karpicke | Recall questions in the principles and retention skills. |
-| [Levels of processing](https://doi.org/10.1016/S0022-5371(72)80001-X) — Fergus I. M. Craik and Robert S. Lockhart | Meaningful processing beyond surface fluency in the principles. |
-| [Telling Lies to Children](https://serc.carleton.edu/earthandmind/posts/lies_children.html) — Kim Kastens and Dana Chayes | Distinguishing simplification from false claims that later need to be withdrawn. |
-| [Chain-of-Verification](https://aclanthology.org/2024.findings-acl.212/) — Shehzaad Dhuliawala et al. | Checking facts in a separate context without the draft. |
-| [Enabling Large Language Models to Generate Text with Citations](https://arxiv.org/abs/2305.14627) — Tianyu Gao et al. | Checking whether a source supports each claim. |
-| [natural-japanese](https://github.com/coji/natural-japanese) — coji | Train/test separation and competing-trigger checks in development evaluations. |
-| [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) — Anthropic | Creating, trying, and refining the initial four skills. |
-| [Defuddle](https://github.com/kepano/defuddle) — kepano and contributors | Extracting web article text for evaluation materials. |
+| [AIっぽい文章表現大全](https://note.com/yusuke_motoyama/n/n2a1218636f56) — もとやま | 規範と文書スキルの日本語文体の見直し。 |
+| [yomiyasu](https://github.com/nanaism/yomiyasu) — nanaism | 修正回数の上限と、原文にない事実を補わない規則。 |
+| [japanese-tech-writing](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d/8f2d57610a73efc97d743c9b0b0ecb1002e09fa4) — k16shikano | 4 文書スキルの論証・読者負荷・視点。 |
+| [編集者は日本語をどうやって推敲しているか](https://golden-lucky.hatenablog.com/entry/2026/08/20/185818) — golden-lucky | 段落の関係を読み、読者が迷う位置を見つける手順。 |
+| [ELI5](https://github.com/anthropics/claude-plugins-community/tree/main/eli5) — Thariq Shihipar | explain の絵を主役にした短い説明。 |
+| [説明スキルの比較：ELI5、Archify、Explainer](https://blog.lai.so/eli5-archify-explainer-skills/) — laiso | 説明手順の改善を検討するきっかけとなった比較。 |
+| [Explainer](https://github.com/mizchi/explainer) — mizchi | laiso の比較記事を介した、配布先の既知・未解決の問い・実行による裏取りの発想。 |
+| [Archify](https://github.com/tt-a1i/archify) — tt-a1i | laiso の比較記事を介した、題材に合う分岐・状態遷移・往復の図を選ぶ発想。 |
+| [Writes and Write-Nots](https://paulgraham.com/writes.html) — Paul Graham | 文体を整える前に、書き手の決定と主張を確定する設計。 |
+| [Diátaxis](https://diataxis.fr/) — Daniele Procida and contributors | 読者の目的に応じて技術文書の原則を選ぶ設計。四象限をそのまま実装したものではない。 |
+| [rite workflow](https://github.com/B16B1RD/cc-rite-workflow) — B16B1RD and contributors | 共有 references、独立した読み手、裏取りの判定区分。 |
+| [Memory and comprehension of narrative versus expository texts: A meta-analysis](https://doi.org/10.3758/s13423-020-01853-1) — Raymond A. Mar et al. | 規範の因果の物語による構成。 |
+| [Test-Enhanced Learning](https://doi.org/10.1111/j.1467-9280.2006.01693.x) — Henry L. Roediger III and Jeffrey D. Karpicke | 規範と retention 系の想起を伴う読了チェック。 |
+| [Levels of processing](https://doi.org/10.1016/S0022-5371(72)80001-X) — Fergus I. M. Craik and Robert S. Lockhart | 見た目の流暢さだけでなく、意味の処理を促す規範。 |
+| [Telling Lies to Children](https://serc.carleton.edu/earthandmind/posts/lies_children.html) — Kim Kastens and Dana Chayes | explain で単純化と、後で撤回が必要になる虚偽を区別する考え方。 |
+| [Chain-of-Verification](https://aclanthology.org/2024.findings-acl.212/) — Shehzaad Dhuliawala et al. | 草稿を見せない別文脈で事実を検証する発想。 |
+| [Enabling Large Language Models to Generate Text with Citations](https://arxiv.org/abs/2305.14627) — Tianyu Gao et al. | 主張ごとに出典の支持を確認する考え方。 |
+| [natural-japanese](https://github.com/coji/natural-japanese) — coji | 開発時の発動境界評価における train/test 分離と競合検出。 |
+| [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) — Anthropic | 初期 4 スキルの作成・試走・改善。 |
+| [Defuddle](https://github.com/kepano/defuddle) — kepano and contributors | 評価資料の Web 本文抽出。 |
 
-Natural-japanese, skill-creator, and Defuddle are acknowledged for development and evaluation work; they are not runtime dependencies. The [writing principles](memorable-doc-principles.md) retain further research citations.
+natural-japanese・skill-creator・Defuddle は開発と評価の道具としての謝辞であり、実行時の依存ではありません。[文書設計の規範](memorable-doc-principles.md)には、このほかの研究出典も残しています。
 
-## License
+## ライセンス
 
-[MIT](LICENSE). See the [changelog](CHANGELOG.md) for release changes.
+[MIT](LICENSE)。版ごとの変更は[変更履歴](CHANGELOG.md)を参照してください。
 
-This is an independent project, not an official Anthropic product and not endorsed by or affiliated with Anthropic. Product names identify compatibility or cited work.
+独立したプロジェクトであり、Anthropic の公式製品ではなく、公認・提携を示すものでもありません。製品名は対応環境や参照資料を示すために記載しています。

@@ -1,7 +1,7 @@
 {
   "name": "bb-doc-skills",
-  "version": "0.9.0",
-  "description": "Five Japanese writing, review, and visual explanation skills for Claude Code.",
+  "version": "0.9.1",
+  "description": "Claude Code で使う、日本語の執筆・レビュー・図解の 5 スキル。",
   "author": {
     "name": "B16B1RD",
     "url": "https://github.com/B16B1RD"

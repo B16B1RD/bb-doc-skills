@@ -1,57 +1,61 @@
-# Changelog
+# 変更履歴
+
+## 0.9.1
+
+- README を日本語版だけにしました。英語版の README.md を日本語の内容に置き換え、README.ja.md は無くしました。この変更履歴と、`/plugin` に出るプラグインの説明も日本語にしました。スキル自体は、この版では変わりません。
 
 ## 0.9.0
 
-- The reader check used by all five skills now accepts a reader's reply only when it arrives through the host's completion notice or tool result. A result that appears in the parent's own message, or one received before the completion notice, is not treated as the reader's reply. A reply whose reported end time is later than the parent's collection time is discarded and not used for decisions or fixes. In both cases the launch still counts, and a reply that never arrives is reported as not collected.
+- 5 スキルが使う読み手の確認で、読み手の返答として受け取るのは、ホストの完了通知かツールの結果で届いたものだけになりました。親が自分のメッセージに書いた結果や、完了通知より前に受け取った結果は、読み手の返答として扱いません。返答に書かれた終了時刻が、回収時刻より後のものは捨て、判断にも修正にも使いません。どちらの場合も起動は 1 回として数え、届かなかった返答は未回収として報告します。
 
 ## 0.8.0
 
-- explain now estimates text width before placing boxes and arrow labels in its figures, so a label no longer overlaps the boxes on either side and box text stays inside the box. It also renders the page and checks it with the same screenshot procedure and visual checklist as retention-write and tech-write, and reports when no screenshot tool was available.
-- explain now shows how many facts it did not fact-check because of the claim limit, both in the delivery report ("上限で裏取りせず <n> 件") and in the verification summary on the page. The legend gains a matching entry and no longer refers to letters that do not appear on the page.
-- tech-review now puts suggested rewrites in their own section after the findings table instead of inside table cells, so the report no longer shows raw `<br>` tags in the terminal.
-- In HTML output from explain, retention-write, and tech-write, dates and version numbers such as 1873-01-01 are wrapped so they no longer break after a hyphen in headings or body text.
+- explain は、図の箱と矢印のラベルを置く前に文字の幅を見積もるようになりました。ラベルが両側の箱に重ならず、箱の文字も箱からはみ出しません。retention-write・tech-write と同じスクリーンショットの手順と見た目のチェックリストで、ページを描画して確かめるようにもなりました。スクリーンショットの道具が使えなかったときは、そのことを報告します。
+- explain は、裏取りする主張の上限のために裏取りしなかった事実の件数を示すようになりました。納品の報告（「上限で裏取りせず <n> 件」）と、ページの検証サマリの両方に出します。凡例にもこれに対応する項目を足し、ページに出てこない文字には触れないようにしました。
+- tech-review は、書き直し案を指摘の表のセルの中ではなく、表の後の別の節に置くようになりました。端末に生の `<br>` タグが出なくなります。
+- explain・retention-write・tech-write の HTML の出力で、1873-01-01 のような日付や版番号を折り返さないように囲むようにしました。見出しでも本文でも、ハイフンの後で改行されなくなります。
 
 ## 0.7.1
 
-- Add a 56-second demo video near the top of the README, in both the English and Japanese versions. It shows each of the five skills running in Claude Code with the published plugin, with the work sped up. The skills themselves do not change in this version.
+- README の冒頭近くに、56 秒の紹介動画を置きました（当時の英語版と日本語版の両方）。公開版を入れた Claude Code で 5 つのスキルを動かしたもので、作業の部分は早送りです。スキル自体は、この版では変わりません。
 
 ## 0.7.0
 
-- Change the look of the HTML output from explain, retention-write, and tech-write so it no longer reads as AI-generated at a glance. The cream background and terracotta accent are gone. Each skill now uses one fixed pair of typefaces and accent color: explain uses Noto Sans JP with blue, retention-write uses Noto Serif JP with indigo, and tech-write uses IBM Plex Sans JP and IBM Plex Mono with green. Japanese typesetting rules are shared by all three: body lines are limited to 40em, strict line breaking and spacing between Japanese and Latin text apply to the body, and proportional spacing, balanced wrapping, and phrase-based line breaks apply to headings only. Table cells no longer break words, and figures and explain panels can extend to 52rem.
-- In HTML, sources are now shown as superscript numbers linked to the source list. Markdown drafts keep the "(出典 n)" form. tech-review turns the superscript numbers back into "(出典 n)" when it extracts the text of an HTML document.
-- The visual checklist for HTML now checks for common signs of AI-generated pages, such as small labels above headings, fade-in sections, emoji headings, and rounded shadowed cards on every block. retention-write sets only its one-sentence conclusion larger than the body text, and tech-write shows a fixed table of contents on the left only when a document has four or more h2 headings and the screen is at least 1100px wide.
+- explain・retention-write・tech-write の HTML の出力の見た目を、ひと目で AI が作ったと分かる見た目から変えました。クリーム色の背景とテラコッタの差し色はやめました。スキルごとに書体と差し色の組を 1 つに決めています。explain は Noto Sans JP と青、retention-write は Noto Serif JP と藍、tech-write は IBM Plex Sans JP・IBM Plex Mono と緑です。日本語の組版の規則は 3 つで共通です。本文の行の長さは 40em までにし、本文には厳格な禁則と、和文と欧文の間のアキを使います。プロポーショナルの字詰め、行の長さをそろえる折り返し、文節での改行は見出しだけに使います。表のセルでは単語の途中で改行しません。図と explain のパネルは 52rem まで広げられます。
+- HTML では、出典を出典一覧へのリンクつきの上付き番号で示すようになりました。Markdown の原稿は「(出典 n)」の形のままです。tech-review は、HTML の文書から本文を抜き出すときに、上付き番号を「(出典 n)」に戻します。
+- HTML の見た目のチェックリストで、AI が作ったページによくある兆候も確かめるようになりました。見出しの上の小さなラベル、節ごとのフェードイン、絵文字の見出し、すべての塊に付いた角丸と影のカードなどです。retention-write が本文より大きく組むのは、結論の一文だけにしました。tech-write が左に固定の目次を出すのは、h2 の見出しが 4 つ以上あり、画面の幅が 1100px 以上のときだけです。
 
 ## 0.6.0
 
-- Add a topic overview document type to tech-write and tech-review, for documents that explain the concepts and mechanics of a technical topic such as Git Flow or OAuth. tech-write picks it up only when a document is requested (summarize it, write an explanation, make it a document), not for a plain "explain" question. It looks up the facts itself, gives each fact a source URL and the date it was checked, confirms definitions and specifications against primary sources (official documentation, specifications, or the original work) as explain does, marks facts it cannot source as needing confirmation, and states in the text when the facts date from (for example, the original publication date and any later notes by the author). It adds no evaluation or adoption recommendation of its own, and attributes any evaluation found in a source to whoever made it. A document for deciding whether to adopt the topic (a proposal) still goes to retention-write; summaries of a given paper or article, comparisons, drawn explanations, and tutorials are handled as before. tech-review audits such overviews with the same checklist.
+- tech-write と tech-review に、技術トピックの解説という文書の種類を足しました。Git Flow や OAuth のような技術トピックの概念と仕組みを説明する文書です。tech-write がこの種類として受けるのは、文書を求められたとき（まとめて、解説を書いて、文書にして）だけで、「説明して」とだけ聞かれたときは受けません。事実は自分で調べ、事実ごとに出典の URL と確かめた日を添えます。定義と仕様は、explain と同じように一次資料（公式の文書、仕様、原典）で確かめます。出典を示せない事実は「要確認」と示し、事実がいつの時点のものか（たとえば最初の公開日と、作者による後からの注記）を本文に書きます。自分の評価や採用の勧めは足さず、出典にある評価は、それを述べた人のものとして書きます。採用するかを決めるための文書（提案書）は、これまでどおり retention-write が受けます。与えられた論文・記事の紹介、比較、図解、チュートリアルの扱いは変わりません。tech-review は、同じチェックリストでこの解説を監査します。
 
 ## 0.5.0
 
-- Add a research report document type to tech-write and tech-review, for comparisons of several options and for verification or measurement reports. tech-write does the research itself (web search, reading files and code, running commands, and throwaway measurement scripts in a temporary directory, leaving the user's repository unchanged). It sets the scope before writing and states it at the top, gives each fact how it was checked (URL, file and line, or command and output), lists what could not be verified both in a "could not verify" section and in the delivery report while marking the affected places as needing confirmation, and puts recommendations in a final section that points to the results they rest on. A document whose main purpose is the recommendation (a proposal) still goes to retention-write. English reports follow the same rules; the Japanese style checks and scan.py apply to Japanese drafts only. tech-review audits such reports with the same checklist. The rule on separating facts from interpretation in investigation comments now lives in the research report reference, and the comment reference points to it.
+- tech-write と tech-review に、調査レポートという文書の種類を足しました。複数の選択肢の比較や、検証・計測の結果を伝えるレポートです。tech-write は調べる作業も自分で行います（Web 検索、ファイルとコードを読むこと、コマンドの実行、一時ディレクトリでの使い捨ての計測スクリプト。利用者のリポジトリは変えません）。書く前に調べる範囲を決めて冒頭に書き、事実ごとに確かめた方法（URL、ファイルと行、またはコマンドと出力）を添えます。確かめられなかったことは「調べられなかったこと」の節と納品の報告の両方に挙げ、影響する箇所には「要確認」と示します。推奨は最後の節に置き、その推奨が拠る結果を指します。推奨を伝えることが主な目的の文書（提案書）は、これまでどおり retention-write が受けます。英語のレポートも同じ規則に従いますが、日本語の文体検査と scan.py は日本語の原稿にだけ使います。tech-review は、同じチェックリストでこのレポートを監査します。調査のコメントで事実と解釈を分ける規則は、調査レポートの reference に移し、コメントの reference からそこを指すようにしました。
 
 ## 0.4.0
 
-- Add a destination to tech-write and tech-review besides the document type: GitHub Markdown by default, or a short X post, an X Article, or a Slack message when one is named. Each destination's limits and syntax live in its own reference, read by both skills. For X, tech-write asks every time whether to fit one post, split into a thread, or write a long post (X Premium, not X Articles), and checks the weighted length with a new standard-library script before delivery; tech-review flags a post over the limit as high with the excess. Slack messages are delivered as mrkdwn text ready to paste. For X Articles, the plan, supported formatting and limits that cannot be confirmed from official help are marked as needing confirmation, and how pasted Markdown or HTML renders is still waiting for a hands-on check. Every destination gets the same pre-delivery checks as before, and post bodies are not turned into HTML.
-- Add a source summary document type to tech-write and tech-review for papers and articles summarized without the writer's opinion. tech-write reads the whole source (every PDF page) before writing, checks numbers, conditions, and limitations against it, quotes minimally with the title and URL, and does not reproduce figures or tables. tech-review audits such summaries against the source with the same checklist. A blog post that introduces an article or paper is written as a source summary unless the request asks for the writer's opinion or impressions; such requests still go to retention-write.
-- tech-review now also takes requests to polish or partly improve an existing reference document (README, procedure, Issue, and so on); a request that asks only for a rewrite still goes to tech-write. It still does not edit the document; it returns findings and suggested rewrites. When a review or polish request also asks for the fix ("fix it"), or the fix is asked for after the report, it reports first and then hands over to tech-write. A request that asks for both a review or polish and the fix ("review this procedure and rewrite it") now starts in tech-review even when tech-write picks it up first, so it always gets the report before the rewrite.
-- tech-write now takes requests to rewrite part of a reference document (a section of a README, a chapter of a procedure), not only full rewrites. retention-write likewise takes requests to rewrite part of a document that argues for a decision (a section of an ADR or a proposal). Both keep the text outside that part unchanged and report issues found there separately.
+- tech-write と tech-review に、文書の種類とは別に投稿先を足しました。既定は GitHub Markdown で、指定があれば X の短文、X Articles、Slack のメッセージにします。投稿先ごとの制約と記法はそれぞれの reference に書き、両方のスキルがそれを読みます。X では、1 投稿に収めるか、スレッドに分けるか、長文の投稿（X Articles ではなく X Premium）にするかを tech-write が毎回聞き、納品の前に、標準ライブラリだけで動く新しいスクリプトで重み付きの文字数を確かめます。tech-review は、上限を超えた投稿を、超えた分とともに重要度 high で指摘します。Slack のメッセージは、そのまま貼れる mrkdwn の文で納品します。X Articles については、公式のヘルプで確かめられないプラン・使える書式・制約を「要確認」と示しています。貼り付けた Markdown や HTML がどう表示されるかは、まだ実機で確かめていません。どの投稿先にも、これまでと同じ納品前の確認を行い、投稿の本文は HTML にしません。
+- tech-write と tech-review に、論文・記事の紹介という文書の種類を足しました。書き手の意見を足さずに、論文や記事を紹介・要約する文書です。tech-write は書く前に原典を全文（PDF なら全ページ）読み、数値・条件・限界を原典と照合し、引用は最小限にして題名と URL を添え、図や表は転載しません。tech-review は、同じチェックリストで、原典と照らしてこの紹介を監査します。記事や論文を紹介するブログ記事は、依頼が書き手の意見や感想を求めていなければ、この紹介として書きます。意見や感想を求める依頼は、これまでどおり retention-write が受けます。
+- tech-review は、既存の参照文書（README、手順書、Issue など）の推敲や部分的な改善の依頼も受けるようになりました。書き直しだけを頼む依頼は、これまでどおり tech-write が受けます。tech-review は文書を編集せず、指摘と書き直し案を返します。レビューや推敲の依頼に修正も含まれるとき（「直して」）や、報告の後に修正を頼まれたときは、先に報告してから tech-write に引き継ぎます。レビューや推敲と修正の両方を頼む依頼（「この手順書をレビューして、書き直して」）は、tech-write が先に受けた場合も tech-review から始めるようにしました。いつも書き直しの前に報告が出ます。
+- tech-write は、参照文書の一部（README の 1 節、手順書の 1 章）の書き直しの依頼も受けるようになりました。全体の書き直しだけではありません。retention-write も同じように、判断を主張する文書の一部（ADR や提案書の 1 節）の書き直しを受けます。どちらも、その範囲の外の文は変えず、外で見つけた問題は別に報告します。
 
 ## 0.3.0
 
-- Run the tech-write readability pass on explain pages before delivery to reduce AI-sounding prose.
-- Omit the empty "where the analogy breaks" section from explain pages that use no analogy.
+- explain のページを納品する前に、tech-write の読みやすさ点検を通し、AI っぽい文を減らすようにしました。
+- たとえ話を使わない explain のページでは、空の「このたとえ話が壊れるところ」の節を出さないようにしました。
 
 ## 0.2.0
 
-- Treat PR descriptions as a document type and keep paragraphs focused on one point while preserving information.
-- Flag long Japanese prose paragraphs as weak signals for contextual review.
-- Include paragraphs revisited during a first read in reader checks.
-- Plan the structure of multi-point technical documents before drafting, without adding unnecessary planning to short documents.
-- Prevent retention-review from declaring a guarantee invalid based on an unverified relationship.
+- PR の説明を文書の種類として扱い、情報を落とさずに、段落を 1 つの論点に絞るようにしました。
+- 日本語の散文の長い段落を、文脈を見て確かめるための弱い兆候として示すようにしました。
+- 最初に読むときに読み返した段落も、読み手の確認の対象に含めるようにしました。
+- 論点が複数ある技術文書では、書く前に構成を決めるようにしました。短い文書には、要らない計画を足しません。
+- retention-review が、確かめていない関係を根拠に保証を無効と判断しないようにしました。
 
 ## 0.1.0
 
-- Bundle five Japanese skills: retention-write, retention-review, tech-write, tech-review, and explain.
-- Include shared writing principles and references, plus a Python scanner for Japanese prose.
-- Provide English and Japanese installation instructions.
-- Support local HTML explanations with claim-level verification status and stated limits of analogies.
+- 日本語の 5 スキル（retention-write、retention-review、tech-write、tech-review、explain）をまとめて配布します。
+- 共有の文書設計の規範と references、日本語の散文を調べる Python のスキャナーを含めます。
+- 英語と日本語の導入手順を用意しました。
+- 主張ごとの裏取りの状態と、たとえ話の限界を示すローカルの HTML の説明に対応します。
