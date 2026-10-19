@@ -221,7 +221,7 @@ _REFERENCE_WEAK_BY_CATEGORY = {
     "translated_metaphors": frozenset(TRANSLATED_METAPHORS),
 }
 
-BOLD = re.compile(r"\*\*[^*\n]+?\*\*|__[^_\n]+?__|<(?:b|strong)>.*?</(?:b|strong)>")
+BOLD = re.compile(r"\*\*[^*\n]+?\*\*|__[^_\n]+?__|<(?:b|strong)>(?:(?!</?(?:b|strong)>).)*</(?:b|strong)>")
 HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
 FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 # ダッシュは違反のカテゴリではなく統計欄の数値だけに使う。連続する「——」は 1 個と数える
@@ -346,7 +346,7 @@ def paragraph_inline(text, depth=0):
                 value = text[pos + 1:close]
                 if re.fullmatch(r"(?:https?://|mailto:)[^\s<>]+", value):
                     out.append(value.removeprefix("mailto:"))
-                elif re.fullmatch(r"/?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?", value):
+                elif re.fullmatch(r"/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?", value):
                     if '\"' in value or "'" in value:
                         raise ParagraphUnsupported("引用符を含む inline HTML 属性")
                 else:
@@ -554,7 +554,7 @@ def paragraph_measure(text):
                     continue  # CommonMark+table は pipe なしの本文行も table に含める。
                 table = False
             if index + 1 < len(lines) and "|" in line and re.fullmatch(
-                    r" {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*", lines[index + 1]):
+                    r" {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*(?:\|[ \t]*)?", lines[index + 1]):
                 if "\\" in line or "`" in line:
                     raise ParagraphUnsupported("table 見出しの escape・code span")
                 header = line.strip().removeprefix("|").removesuffix("|").split("|")
@@ -598,7 +598,7 @@ def paragraph_measure(text):
                 if not re.search(ending, stripped, re.I):
                     html_end = ending
                 continue
-            generic_tag = re.fullmatch(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*)?/?>\s*", stripped)
+            generic_tag = re.fullmatch(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>\s*", stripped)
             if PARAGRAPH_HTML_BLOCK.match(line) or (generic_tag and not current):
                 flush()
                 html_to_blank = True

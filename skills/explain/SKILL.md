@@ -7,7 +7,7 @@ description: >-
   レベル（5 歳・小学生・中学生・高校生・大人）と形（一直線・分岐・状態遷移・往復）と深さ（--deep）と出力先（Artifact で）は自然言語で受ける。
   使わない: README・Issue・手順書など参照系技術文書の執筆（それは tech-write）、設計メモ・ADR・提案書など判断や主張を伝える散文の執筆（それは retention-write）、既存文書のレビュー（それは tech-review / retention-review）、既存コードの構造調査（それは調査系スキル）。
 argument-hint: "<topic> [レベル: 5 歳|小学生|中学生|高校生|大人] [形：一直線|分岐|状態遷移|往復] [--deep] [Artifact で]"
-allowed-tools: ["Bash", "Read", "Write", "Glob", "Grep", "Agent", "WebSearch", "WebFetch", "mcp__plugin_context7_context7__resolve-library-id", "mcp__plugin_context7_context7__query-docs", "Artifact"]
+allowed-tools: ["Read", "Write", "Glob", "Grep", "Agent", "WebSearch", "WebFetch", "mcp__plugin_context7_context7__resolve-library-id", "mcp__plugin_context7_context7__query-docs", "Artifact"]
 ---
 
 # explain — 裏取りつきの図解説明
