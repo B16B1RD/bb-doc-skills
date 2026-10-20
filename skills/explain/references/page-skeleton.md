@@ -25,20 +25,28 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 1. `<meta charset="utf-8">` — 文字符号化の宣言。`file://` で開いたときの表示が閲覧環境に依存しない
    ようにする。Artifact がこのファイルを `<body>` で包むとこのタグも `<body>` 内に入るが、符号化の
    決定には使われず表示にも影響しない
-2. `<title>` — トピックの問いの形（例：`<title>DNS ってなに？</title>`）。Artifact はファイル
-   先頭 8KB しか走査しないため、charset の直後（ファイル先頭付近）に置く
+2. `<title>` — explain はトピックの問いの形（例：`<title>DNS ってなに？</title>`）、文書系スキルは文書の
+   題名をそのまま書く。Artifact はファイル先頭 8KB しか走査しないため、charset の直後（ファイル先頭付近）に置く
 3. `<link>` — Google Fonts のスタイルシートを読むときだけ置く（下記「外部依存」で許した唯一の
    外部読み込み）。`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">`
    の形。**`display=swap` を必ず付ける** — 既定の `auto` はフォント取得中に本文を見えなくするため、
    応答が遅い環境で読者が白紙を見る
 4. `<style>` — トークン定義から始める全 CSS
-5. 本文 — 上の階 → 階段 → 下の階
+5. 本文 — explain は上の階 → 階段 → 下の階。文書系スキルは自分の文書の構成をそのまま写す。本文は
+   `<main lang="ja">` で包む（英語の文書は `lang="en"`）。テーマの切り替えのボタンと tech-write の目次は
+   `<main>` の前に置く。Artifact が足す骨格の `<html>` には `lang` が無いので、ここで言語を示さないと、
+   見出しの `word-break: auto-phrase` が効かず、「認可コ」「ードフロー」のように語の途中で折れる
 
 ```html
 <meta charset="utf-8">
 <title>DNS ってなに？</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">
 <style>/* トークン定義から始める全 CSS */</style>
+<div class="theme" role="group" aria-label="表示の明るさ">…</div>
+<main lang="ja">
+  <h1>DNS ってなに？</h1>
+  …
+</main>
 ```
 
 ## 上の階の骨格
@@ -286,28 +294,46 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 トークンを `:root` に定義し、本文とパネルは必ずトークン経由で色を引く。生の色値を要素に直書きしない。
 
 文書の種類ごとに、書体とアクセント色を次の 1 組に固定する。explain・retention-write・tech-write のどれが
-作ったページかで行を選び、下の雛形の `--font-body` / `--font-head` / `--font-mono` と、`:root` と暗い側
-2 箇所の `--accent` / `--hi` / `--mark` をその行の値に差し替える。ほかのトークンと規則は 3 スキルで共通に
-使う。行に無い書体や色を足さない。
+作ったページかで行を選び、下の雛形の `--font-body` / `--font-head` / `--font-mono` と、明るい側 2 箇所（1 段目と
+4 段目）と暗い側 2 箇所（2 段目と 3 段目）の `--accent` / `--hi` / `--mark` / `--panel` / `--c1` / `--c1-soft` をその行の値に差し替える。ほかのトークンと規則は 3 スキルで
+共通に使う。行に無い書体や色を足さない。
 
-| スキル | 本文の書体 | 見出しの書体 | コードの書体 | アクセント（ライト / ダーク） | `--hi`・`--mark`（ライト / ダーク） |
-|--------|-----------|-------------|-------------|------------------------------|-----------------------------------|
-| explain | Noto Sans JP | Noto Sans JP | Source Code Pro | 青 `#1f5fbf` / `#6fa3ef` | `#dde8f8` / `#1d3150` |
-| retention-write | 本文 Noto Serif JP | Noto Serif JP | Source Code Pro | 藍 `#2c4a7a` / `#8fb0e6` | `#e1e7f1` / `#24324a` |
-| tech-write | IBM Plex Sans JP | IBM Plex Sans JP | IBM Plex Mono | 緑 `#1a7f37` / `#3fb950` | `#dcf0e1` / `#1c3524` |
+| スキル | 本文の書体 | 見出しの書体 | コードの書体 | アクセント（ライト / ダーク） | `--hi`・`--mark`（ライト / ダーク） | `--panel`（ライト / ダーク） | `--c1`・`--c1-soft`（ライト / ダーク） |
+|--------|-----------|-------------|-------------|------------------------------|-----------------------------------|-----------------------------|--------------------------------------|
+| explain | Noto Sans JP | Noto Sans JP | Source Code Pro | 青 `#1f5fbf` / `#6fa3ef` | `#dde8f8` / `#1d3150` | `#f3f6fb` / `#161c26` | 緑 `#1a7f37`・`#dcf0e1` / `#3fb950`・`#1c3524` |
+| retention-write | 本文 Noto Serif JP | Noto Serif JP | Source Code Pro | 藍 `#2c4a7a` / `#8fb0e6` | `#e1e7f1` / `#24324a` | `#f3f5f9` / `#191e28` | 緑 `#1a7f37`・`#dcf0e1` / `#3fb950`・`#1c3524` |
+| tech-write | IBM Plex Sans JP | IBM Plex Sans JP | IBM Plex Mono | 緑 `#1a7f37` / `#3fb950` | `#dcf0e1` / `#1c3524` | `#f4f8f5` / `#17211a` | 青 `#1f5fbf`・`#e2ecfa` / `#79aef0`・`#1b2c44` |
 
-地・字・線・面・罫は無彩色にし、色を持つのはアクセントと、そこから作った淡い `--hi` / `--mark` だけにする。
+地・字・罫は無彩色にする。色には次の 2 つの役だけを持たせ、飾りのためには塗らない。
+
+- **アクセント**（`--accent` と、そこから作った淡い `--hi` / `--mark` / `--panel`）：リンク、見出しの左の帯、
+  冒頭の帯と主役図の台紙、強調する 1 か所
+- **区別の色**（`--c1` / `--c2` / `--c3` と、淡い `--c1-soft` / `--c2-soft` / `--c3-soft`）：文書の中で
+  繰り返し出てくる対象（型・段階・立場・比べる候補など）を見分ける。対象ごとに 1 色を決め、図の箱・節の見出しの
+  帯・表・本文の札（`.tag`）のどこでも同じ色を当てる。読者は色だけで、いまどの対象の話かが分かる。3 色まで
+  使う。`--c2`（紫）と `--c3`（ローズ）は 3 スキル共通で、`--c1` だけを上の表の行の値にする。区別の色が
+  アクセントと同じ色相だと、対象の色と強調の色が見分けられなくなるので、`--c1` はアクセントと違う色相にしてある。
+  見分ける対象が 4 つ以上あるときは、本文で節や小節を立てて説明している対象を優先して 3 つに色を当て、
+  残りは無彩色（`--muted` と `--fill`）にする。見分ける対象がない文書では使わない
+
 クリーム色の地とテラコッタのアクセントの組は、生成 AI の画面の配色そのもので、ひと目で AI が作ったページに
-見えるので使わない。地を黄みに寄せたり、アクセントを橙・赤茶に寄せたりもしない。
+見えるので使わない。地を黄みに寄せたり、アクセントや区別の色を橙・赤茶に寄せたりもしない。
 
-テーマは 3 状態ある。閲覧者が明示的に選ぶと根要素に `data-theme="dark"` か `data-theme="light"` が
-付き、既定（システム任せ）では何も付かず `prefers-color-scheme` だけが手がかりになる。3 つとも成り
-立たせるため、次の順で書く。雛形の書体と色は explain の行の値である。
+テーマを決める手がかりは 3 つあり、優先する順に次のとおり。
+
+1. ページの切り替えのボタン（下の「テーマの切り替え」）：根要素の `data-page-theme` に `light` か `dark` を付ける
+2. 閲覧環境の選択：claude.ai の Artifact では、閲覧者が明示的に選ぶと根要素に `data-theme="dark"` か
+   `data-theme="light"` が付く。既定（システム任せ）では何も付かない
+3. OS の設定：`prefers-color-scheme`
+
+この順を CSS の並び順だけで成り立たせるため、次の 4 段で書く。雛形の書体と色は explain の行の値である。
 
 ```html
 <style>
-  /* 1. 明るい側の完全な定義。ここだけで全トークンが揃う */
+  /* 1. 明るい側の完全な定義。ここだけで全トークンが揃う。
+     color-scheme はスクロールバーやボタンなど、ブラウザが描く部品の明暗をテーマに合わせる */
   :root {
+    color-scheme: light;
     --bg: #ffffff;
     --fg: #222222;
     --muted: #5c5c5c;
@@ -317,6 +343,10 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
     --hi: #dde8f8;          /* SVG の強調する 1 か所の面。アクセントを薄めた色 */
     --rule: #dadada;        /* 罫線・区切り */
     --mark: #dde8f8;        /* 着地した事実行の目印 */
+    --panel: #f3f6fb;       /* 冒頭の帯と主役図の台紙。アクセントをごく薄く混ぜた地 */
+    --c1: #1a7f37; --c1-soft: #dcf0e1;  /* 区別の色。--c1 はスキルの行の値、--c2・--c3 は 3 スキル共通 */
+    --c2: #7c3aad; --c2-soft: #efe4f8;
+    --c3: #be185d; --c3-soft: #fbe4ef;
     --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
     --font-head: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
     --font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -325,6 +355,7 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
   /* 2. システムが暗いとき。ただし閲覧者が light を選んでいたら適用しない */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+      color-scheme: dark;
       --bg: #171717;
       --fg: #e6e6e6;
       --muted: #9e9e9e;
@@ -334,11 +365,17 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
       --hi: #1d3150;
       --rule: #363636;
       --mark: #1d3150;
+      --panel: #161c26;
+      --c1: #3fb950; --c1-soft: #1c3524;
+      --c2: #c39be6; --c2-soft: #2e2240;
+      --c3: #f07aae; --c3-soft: #3d1a2b;
     }
   }
 
-  /* 3. 閲覧者が dark を明示したとき。明るいシステムでも適用される */
-  :root[data-theme="dark"] {
+  /* 3. 閲覧環境かページのボタンで dark を選んだとき。明るいシステムでも適用される */
+  :root[data-theme="dark"],
+  :root[data-page-theme="dark"] {
+    color-scheme: dark;
     --bg: #171717;
     --fg: #e6e6e6;
     --muted: #9e9e9e;
@@ -348,7 +385,33 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
     --hi: #1d3150;
     --rule: #363636;
     --mark: #1d3150;
+    --panel: #161c26;
+    --c1: #3fb950; --c1-soft: #1c3524;
+    --c2: #c39be6; --c2-soft: #2e2240;
+    --c3: #f07aae; --c3-soft: #3d1a2b;
   }
+
+  /* 4. ページのボタンで light を選んだとき。閲覧環境や OS が暗くても明るい側に戻す。
+     2・3 段と詳細度が同じなので、最後に置いて並び順で勝たせる */
+  :root[data-page-theme="light"] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --fg: #222222;
+    --muted: #5c5c5c;
+    --line: #222222;
+    --fill: #f2f2f2;
+    --accent: #1f5fbf;
+    --hi: #dde8f8;
+    --rule: #dadada;
+    --mark: #dde8f8;
+    --panel: #f3f6fb;
+    --c1: #1a7f37; --c1-soft: #dcf0e1;
+    --c2: #7c3aad; --c2-soft: #efe4f8;
+    --c3: #be185d; --c3-soft: #fbe4ef;
+  }
+
+  /* 台紙の内側の余白を幅に含める。含めないと、台紙だけが本文の列から右へはみ出す */
+  *, *::before, *::after { box-sizing: border-box; }
 
   /* body の背景は必ず明示する。透明のままだと閲覧環境の地の色が透ける。
      字の既定もここで決める（毎回の生成で同じ系統にするため散文ではなく雛形に置く） */
@@ -375,32 +438,61 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
     margin: 2.2em 0 .6em;
   }
   h1 { font-size: 1.75rem; margin-top: 0; }
-  h2 { font-size: 1.35rem; padding-bottom: .3em; border-bottom: 1px solid var(--rule); }
+  /* h2 の左に太い帯を引く。節に区別の色（--sec）が決まっていればその色、なければアクセント */
+  h2 {
+    font-size: 1.35rem;
+    margin-top: 3em;
+    padding: .1em 0 .1em .7em;
+    border-left: .3rem solid var(--sec, var(--accent));
+  }
   h3 { font-size: 1.1rem; }
 
-  /* 定義したトークンは必ずどこかで使う。使わないトークンは次の生成で値がずれる。
+  /* 区別の色。節の要素（<section>）や図に付けると、中の見出しの帯・表の見出し行・箇条の記号がその色になる。
+     見分ける対象がない文書では使わない */
+  .is-c1 { --sec: var(--c1); --sec-soft: var(--c1-soft); }
+  .is-c2 { --sec: var(--c2); --sec-soft: var(--c2-soft); }
+  .is-c3 { --sec: var(--c3); --sec-soft: var(--c3-soft); }
+  /* 区別の色を決めた小節の h3 にも、同じ色の細い帯を引く */
+  :is(.is-c1, .is-c2, .is-c3) > h3 { padding-left: .6em; border-left: .2rem solid var(--sec); }
+  /* 本文や表の中で対象の名前に付ける札 */
+  .tag {
+    display: inline-block; padding: 0 .5em; border-radius: 3px;
+    font-size: .85em; font-weight: 700; line-height: 1.7; white-space: nowrap;
+    color: var(--sec, var(--muted)); background: var(--sec-soft, var(--fill));
+  }
+  /* 表の中の札は折り返す。折り返さないと狭い幅で 1 列目だけが広がり、右の列が押し出される */
+  td .tag { white-space: normal; }
+
+  /* 定義したトークンは、区別の色（--c1〜--c3）と、文書系スキルの --mark を除いて必ずどこかで使う。使わないトークンは次の生成で値がずれる。
      --hi は inline SVG の強調する 1 か所の fill で使う */
   a { color: inherit; text-decoration-color: var(--muted); text-underline-offset: .2em; }
   a:hover { color: var(--accent); }
   .panel .claim { font-size: 1.15em; }
-  .panel { scroll-margin-top: 5rem; }
+  .panel { scroll-margin-top: 5rem; background: var(--panel); border-radius: 6px; padding: 1.4rem 1.25rem 1rem; }
   .panel:target { outline: 2px solid var(--accent); outline-offset: .5rem; }
   .note { color: var(--muted); font-size: .95em; margin: 0 0 .2em; }
   .pin { color: var(--muted); font-size: .9em; }
   .pin a { color: var(--accent); }
-  table { border-collapse: collapse; }
+  /* <!DOCTYPE> の無いファイルをブラウザで直接開くと互換モードで描かれ、表が本文の字の色と大きさを受け継がない。
+     受け継ぎを明示しないと、表の字が本文より小さくなり、テーマを切り替えたときに字の色だけが前のテーマに残る */
+  table { border-collapse: collapse; color: inherit; font-size: inherit; }
   th, td {
     border-bottom: 1px solid var(--rule);
     padding: .5em .7em;
     text-align: left;
     vertical-align: top;
     overflow-wrap: normal;  /* 語の途中で折らない */
-    word-break: keep-all;   /* 文節の途中で折らない。収まらない表は .scroll-x の中で横にスクロールする */
+    line-break: strict;
+    word-break: normal;     /* 日本語は字の間で折る。文節で折ると狭い画面で列の幅が足りなくなる */
   }
-  th { color: var(--muted); font-weight: 700; }
+  th { font-weight: 700; }
+  thead th { background: var(--sec-soft, var(--fill)); border-bottom: 2px solid var(--sec, var(--accent)); }
+  li::marker { color: var(--sec, var(--accent)); }
   td code, th code { white-space: nowrap; }
   /* 日付・版番号のようにハイフンや点でつないだ語を、ハイフンの後ろで折らない */
   .nobr { white-space: nowrap; }
+  /* 狭い画面の 1 行に収まらない長い値（例の値・ハッシュ・トークン・長い URL）は、どの字の後ろでも折る */
+  code.break { white-space: normal; overflow-wrap: anywhere; }
   .facts tbody tr { scroll-margin-top: 5rem; }
   .facts tbody tr:target { background: var(--mark); }
   @media (prefers-reduced-motion: no-preference) {
@@ -415,7 +507,75 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 ```
 
 2 段目の `:not([data-theme="light"])` を落とすと、暗いシステムで明るいテーマを選んだ閲覧者に暗い色が
-出る。トークンが 3 箇所に並んでいても 3 状態にならないので、この guard は省略しない。
+出る。トークンが並んでいても優先の順にならないので、この guard は省略しない。4 段目は 1 段目と同じ明るい側の
+値を写したもので、1 段目の値を変えたら 4 段目も同じ値に変える。4 段目を 2・3 段目より前に置くと、暗いシステムや
+閲覧環境のダークが勝ち、ボタンの「ライト」が効かない。
+
+### テーマの切り替え
+
+ページの右上に、閲覧者がテーマを選ぶボタンを置く。OS がダークの閲覧者でも、白地で読みたいときに切り替え
+られるようにするためである。選べるのは「自動」（閲覧環境の選択、無ければ OS の設定に従う）・「ライト」・「ダーク」の
+3 つで、押すと根要素の `data-page-theme` を書き換える。上の 4 段の CSS がこの印で色を切り替えるので、色の定義は
+足さない。
+
+ボタンは `data-theme` に書き込まない。`data-theme` は claude.ai の Artifact などの閲覧環境が付ける印で、ボタンが
+同じ印を書き換えると、閲覧環境で選んだテーマを「自動」が消してしまう。閲覧環境が後から印を書き換えたときも、
+ボタンの押された表示が実際の表示と食い違う。印を分ければ、優先の順は CSS の並び順だけで決まり、ボタンの表示は
+いつもページ自身の選択と一致する。
+
+ボタンは `<body>` の中身の先頭（`<style>` の直後）に置く。
+
+```html
+<div class="theme" role="group" aria-label="表示の明るさ">
+  <button type="button" data-set="auto" aria-pressed="true">自動</button>
+  <button type="button" data-set="light" aria-pressed="false">ライト</button>
+  <button type="button" data-set="dark" aria-pressed="false">ダーク</button>
+</div>
+<script>
+  (() => {
+    const root = document.documentElement;
+    const buttons = document.querySelectorAll('.theme button');
+    const apply = (mode) => {
+      if (mode === 'auto') root.removeAttribute('data-page-theme');
+      else root.setAttribute('data-page-theme', mode);
+      buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.set === mode)));
+    };
+    // 選んだテーマはこの閲覧者のブラウザにだけ残す。保存できない環境でも表示は切り替わる
+    let saved = null;
+    try { saved = localStorage.getItem('theme'); } catch (e) {}
+    if (saved === 'light' || saved === 'dark') apply(saved);
+    buttons.forEach((b) => b.addEventListener('click', () => {
+      apply(b.dataset.set);
+      try { localStorage.setItem('theme', b.dataset.set); } catch (e) {}
+    }));
+  })();
+</script>
+<style>
+  /* 右上に固定し、本文の列の幅には入れない */
+  .theme {
+    position: fixed; top: .75rem; right: .75rem; z-index: 10;
+    display: flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden;
+    background: var(--bg); font-size: .8rem;
+  }
+  .theme button { font: inherit; color: var(--muted); background: none; border: 0; padding: .35em .8em; cursor: pointer; }
+  .theme button + button { border-left: 1px solid var(--rule); }
+  .theme button[aria-pressed="true"] { color: var(--fg); background: var(--fill); font-weight: 700; }
+  .theme button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media print { .theme { display: none; } }
+  /* 狭い画面では、ボタンをページの先頭の空きに置き、スクロールしても本文の字に重ならないようにする */
+  @media (max-width: 600px) {
+    body { padding-top: 3.5rem; }
+    .theme { position: absolute; }
+  }
+</style>
+```
+
+上の例は読みやすさのために CSS を並べて書いている。実際のページでは、CSS は先頭の `<style>` へ統合する。
+
+- `localStorage` の読み書きは `try` で包む。プライベートウィンドウなど保存を許さない環境では例外が出るが、
+  切り替え自体は動かす
+- テーマを切り替えたら、表の字が本文と同じ濃さで出ることを確かめる。雛形の `table` の `color: inherit` を
+  落とすと、手元のファイルで開いたとき表の字だけが前のテーマの色に残る
 
 ### 書体の読み込みと太さ
 
@@ -446,22 +606,32 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
 - 見出し（`h1`〜`h3`）だけ：`font-feature-settings: "palt"`（詰め組）、`text-wrap: balance`（行の長さの釣り合い）、
   `word-break: auto-phrase`（文節での改行）。本文の `body`・`p`・`li` には掛けない。本文で詰めると字間が
   不ぞろいになり、`balance` は長い段落の行末をがたつかせる
-- 日付（`1873-01-01`）・版番号（`0.7.0`）・識別子のように、ハイフンや点でつないだ一続きの語は、見出しでも
+- 日付（`1873-01-01`）・版番号（`0.7.0`）・識別子・コマンドのオプション名（`--no-ff`）・ハイフンでつないだ
+  用語（fast-forward）のように、ハイフンや点でつないだ一続きの語は、見出しでも
   本文でも `<span class="nobr">` で包む。ブラウザはハイフンの後ろを改行してよい位置として扱い、見出しの
   `text-wrap: balance` が行の長さをそろえようとして「1873-」と「01-01」に割ることがある。`line-break: strict`
   ではこの改行を止められない。文字を改行しないハイフン（U+2011）に置き換えて防がない。コピーした語が元の字と
   別の文字になり、検索に掛からなくなる
+- `nobr` で包むのは、狭い画面（390px）の 1 行に収まる短い語だけにする。`<code>` に入れて書く値（例として出す
+  値・ハッシュ・トークン・パラメータの組）が半角 20 字を超えるときは、`nobr` で包まず `<code class="break">` に
+  してどの字の後ろでも折る。長い値を包むと 1 行に収まらず、ページ本体が横にスクロールする（「レイアウト」）。
+  地の文の語を、折るためだけに `<code>` へ入れない。出典一覧の URL は、出典一覧の CSS が折る
 - 見出しはブラウザ既定のまま置かない。大きさ・行間・上下の空きは雛形の `h1` / `h2` / `h3` の規則を使う
-- 表のセル：`overflow-wrap: normal` と `word-break: keep-all` で語や文節の途中で折らない。表の中の `code` は
-  `white-space: nowrap` にして、コマンドやパスを途中で折らない。幅に収まらない表は `.scroll-x` の中で
-  横にスクロールさせる（「レイアウト」）
+- 表のセル：`overflow-wrap: normal` で英単語の途中で折らず、日本語は `word-break: normal` で字の間で折る。
+  `auto-phrase`（文節で折る）は見出しにだけ掛け、セルには掛けない。390px の 2 列の表で試すと、「アプリケーション。」の
+  ような文節を割れないため 2 列目の最小の幅が 186px になり、表が列から 16px はみ出した。`keep-all` も使わない。
+  日本語の文を句読点まで折らないので、文の入ったセルが列の幅を超え、表の右側が横スクロールの中に隠れる。表の中の `code` は
+  `white-space: nowrap` にして、コマンドやパスを途中で折らない（長い値は上の `code.break`）。表の中の札
+  （`.tag`）は折り返す。幅に収まらない表は `.scroll-x` の中で横にスクロールさせる（「レイアウト」）
 
-見た目の既定は技術図解調にする。SVG の輪郭は細め、角は控えめに丸め、面は地に近い無彩色、強調は 1 か所だけ
-アクセント系の `--hi`。字と罫の既定は上の雛形が持つので、散文で言い直さずそのまま使う。トークン名も上の例の
-`--bg` / `--fg` / `--muted` / `--line` / `--fill` / `--accent` / `--hi` / `--rule` / `--mark` /
-`--font-body` / `--font-head` / `--font-mono` を使い回し、毎回の生成で同じ系統の見た目にする。
-面を持つ要素を増やさない。枠・影・背景色を全ブロックに付けると、灰色の面だらけのページになる。
-線幅・角丸・図内の字の大きさは「inline SVG の規則」が、表示幅の上限は「レイアウト」が決める。
+見た目の既定は技術図解調にする。SVG の輪郭は細め、角は控えめに丸め、面は地に近い無彩色か区別の色の淡い側、
+強調は 1 か所だけアクセント系の `--hi`。字と罫の既定は上の雛形が持つので、散文で言い直さずそのまま使う。
+トークン名も上の例の `--bg` / `--fg` / `--muted` / `--line` / `--fill` / `--accent` / `--hi` / `--rule` /
+`--mark` / `--panel` / `--c1`〜`--c3` / `--c1-soft`〜`--c3-soft` / `--font-body` / `--font-head` /
+`--font-mono` を使い回し、毎回の生成で同じ系統の見た目にする。
+台紙（`--panel` の面）を持つのは、冒頭の帯・主役図・explain のパネルだけにする。段落や箇条まで枠・影・背景色で
+囲むと、どこが要かが分からなくなる。
+線幅・角丸・図内の字の大きさは「inline SVG の規則」が、表示幅は「レイアウト」が決める。
 
 ## 外部依存
 
@@ -475,8 +645,8 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
   および **Google Fonts 以外の**外部スタイルシート。図はすべて inline SVG で描く
 
 自前の CSS と JS はインラインに書く（外に置かない）。外部から読むのは上で許した Google Fonts の
-スタイルシート 1 本だけで、その `<link>` は「ファイルの形」の順序 3 に置く。ページに JS はほぼ不要で、
-`<details>` の開閉はブラウザの機能で足りる。
+スタイルシート 1 本だけで、その `<link>` は「ファイルの形」の順序 3 に置く。ページの JS は「テーマの切り替え」の
+ボタンだけで足りる。`<details>` の開閉はブラウザの機能で足りる。
 
 ## inline SVG の規則
 
@@ -492,10 +662,12 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
 描き方の制約も置く。
 
 - 矩形・円・直線・短いパスで構成する。長いパスデータを手で書き起こさない
-- `viewBox` を必ず付ける。付けない SVG は拡大率が計算できないので許さない。幅は雛形どおり 320 を使う
+- `viewBox` を必ず付ける。付けない SVG は拡大率が計算できないので許さない。explain のパネルと補助図の幅は
+  雛形どおり 320 を使う。retention-write と tech-write の主役図は、列いっぱいに置くので 640 まで広げてよい
 - 幅属性は `viewBox` の幅と同じにする（`width="320"`）。CSS の `max-width` はこれを上限として切り詰め、広げない
 - `role="img"` と `aria-label` を付ける。`aria-label` にはそのパネルの一文の要旨を書く
-- 色は `var(--line)` / `var(--fill)` / `var(--accent)` / `var(--hi)` で引く。生の色値を書かない（テーマが
+- 色は `var(--line)` / `var(--fill)` / `var(--accent)` / `var(--hi)` / `var(--muted)` / `var(--bg)` と、区別の色
+  `var(--c1)`〜`var(--c3)` / `var(--c1-soft)`〜`var(--c3-soft)` で引く。生の色値を書かない（テーマが
   切り替わったとき線と面だけ取り残される）。トークン名 `--line`・`--fill`・`--accent` は変えずに使う
 - 輪郭は細めにする。拡大率は「表示幅 ÷ `viewBox` 幅」である。幅属性を `viewBox` 幅と同じにすると
   デスクトップでは拡大率 1.0 になり、指定した `stroke-width` がそのまま実効の線幅になる。実効の線幅が
@@ -503,8 +675,10 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
   「レイアウト」の `max-width: min(22rem, 100%)` が天井になる。根要素の字が 16px のとき 22rem は 352px で、
   `viewBox` 幅 320 に対する拡大率は 352 ÷ 320 = 1.1 倍である
 - 角は控えめに丸める。矩形の `rx` は 4 を既定にする
-- 面は `var(--fill)` 1 色で塗る。`--fill` の値は地（`--bg`）に近い無彩色にし、色みを持たせない。
-  面を濃くしたり色を付けたりすると、図が灰色や色の塊になって線とラベルが沈む
+- 面は `var(--fill)` で塗る。`--fill` の値は地（`--bg`）に近い無彩色にし、色みを持たせない。区別の色を
+  決めた対象の箱だけは、面を `var(--cN-soft)`、輪郭と主ラベルを `var(--cN)` にする（N は対象に決めた番号）。
+  本文・表・見出しの帯と同じ番号を使い、図の中だけで色を変えない。面に濃い色（`--cN` そのもの）を使うのは
+  1 枚に 1 か所までにし、その上の字は `var(--bg)` で抜く。濃い面が多いと、図が色の塊になって線とラベルが沈む
 - 強調は新しいトークン `--hi` で引く。そのパネルの一文が指す 1 か所だけを `fill="var(--hi)"` で塗り、
   輪郭を `stroke="var(--accent)"` にしてよい。1 パネルに強調は 1 か所までで、`--hi` を地の代わりに使わない
 - 図に具体値（実際の値の例）を置いてよい。置く量は 1 パネルに 1 組までとする
@@ -524,11 +698,11 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
 
 ## レイアウト
 
-本文の行の幅は `max-width: 40em`（全角 40 字前後）にする。図と explain のパネルの容器（`figure`）は、
-本文の 40em より広い 52rem まで本文の外へ張り出してよい。本文の列の中央を保ったまま左右へ同じだけ
-広げるので、張り出しは負の `margin-inline` で作る。画面が 52rem より狭いときは画面の幅（左右の余白を
-除く）が上限になり、張り出しは無くなる。張り出すのは容器であって、パネルの一文・添え書き・根拠ピンは
-容器の中で本文と同じ 40em に収める。
+ページの幅は 1 本だけにする。本文の行の幅は `max-width: 40em`（全角 40 字前後）で、冒頭の帯・図の台紙・
+explain のパネル・表も、この列の中に置いて本文と同じ左端と右端にそろえる。本文の外へ張り出す要素も、
+本文の横に並べる要素も作らない。画面に固定する操作部品（テーマの切り替えのボタンと、tech-write の左の目次）は
+本文の列の外の余白に置く部品で、この規則の対象ではない。帯や図だけが広い・狭いと、右端が要素ごとに出入りし、読者の視線が左右に
+振られる。台紙の内側の字は、台紙の余白の分だけ内側から始まってよい。そろえるのは台紙の縁と本文の端である。
 
 ページ本体は横スクロールさせない。横に長くなりうるもの — 事実リストの表とコードブロック — は
 `overflow-x: auto` の容器に入れ、容器の中だけがスクロールするようにする。図は容器に入れず、
@@ -542,20 +716,22 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
 /* overflow-x だけを指定すると overflow-y は visible のままでいられず auto に計算されるため、
    縦は明示的に閉じる（意図しない縦スクロールバーを出さない） */
 .scroll-x { overflow-x: auto; overflow-y: hidden; }
+.scroll-x table { width: 100%; }
+/* 3 列以上の表が狭い画面で潰れて縦に伸びないよう、最小の幅を持たせ、はみ出た分は容器の中で横に送る。
+   2 列の表には付けない。付けると狭い画面で右の列が横スクロールの中に隠れる。2 列なら折り返して読める */
+.scroll-x table:has(tr > :nth-child(3)) { min-width: 32rem; }
 pre { overflow-x: auto; }
 img, svg { max-width: 100%; height: auto; }
 figure.panel svg { max-width: min(22rem, 100%); }
+/* ページの幅は 1 本。図も帯も表もこの列の中に置き、張り出させない */
 body { max-width: 40em; margin: 0 auto; padding: 2rem 1rem; }
-/* 図とパネルの容器だけを 52rem まで本文の外へ張り出す。狭い画面では画面の幅で止まる */
-figure {
-  --wide: min(52rem, 100vw - 2rem);
-  width: var(--wide);
-  max-width: none;
-  margin-inline: calc((100% - var(--wide)) / 2);
-}
+figure { margin: 2.5rem 0; }
 figure > svg { display: block; margin-inline: auto; }
-figure > figcaption { max-width: 40em; margin-inline: auto; }
+figcaption { margin-top: 1em; color: var(--muted); font-size: .9em; }
 ```
+
+幅を確かめるときは、描画したページで本文の列の各要素（帯・見出し・段落・図・表）の左端と右端を測り、
+すべて同じ値になっていることを見る。目で見るだけだと、数 px の出入りを見落とす。
 
 `overflow-x: auto` の容器はマウス以外でも操作できるようにする。`tabindex="0"` と `role="region"` と
 アクセシブル名（`aria-label`）を付けないと、キーボードだけの読者は容器の中身を最後まで読めない。
