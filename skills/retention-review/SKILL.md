@@ -37,7 +37,7 @@ description: >-
 python3 -c 'from pathlib import Path; import sys; p = Path(sys.argv[1]).resolve(strict=True); print(p); print(p.parent); print(p.parent.parent / "memorable-doc-principles.md")' "${CLAUDE_SKILL_DIR}"
 ```
 
-出力の順は、このスキルの実体ディレクトリ、5 スキルを含む `skills` ディレクトリ、規範のパスである。
+出力の順は、このスキルの実体ディレクトリ、兄弟のスキルを含む `skills` ディレクトリ、規範のパスである。
 プラグイン配備では規範に `${CLAUDE_PLUGIN_ROOT}/memorable-doc-principles.md` を使い、上の実体起点の
 パスと同じルートの 1 部であることを確認する。開発用 symlink 配備では、プラグイン用変数が未置換でも
 実体起点の規範パスを使える。規範のコピーをスキルごとに置かない。

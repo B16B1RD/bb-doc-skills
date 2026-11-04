@@ -10,7 +10,7 @@
         "source": "github",
         "repo": "B16B1RD/bb-doc-skills"
       },
-      "description": "Claude Code で使う、日本語の執筆・レビュー・図解の 5 スキル。"
+      "description": "Claude Code で使う、日本語の執筆・レビュー・図解と、書いた文書への朱入れの 6 スキル。"
     }
   ],
   "description": "日本語の執筆・レビュー・図解のスキル。"
