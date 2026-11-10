@@ -28,8 +28,15 @@ S4（ヘッジ）・S6（空虚な結び）と、弱シグナルの S10（通常
 単体の「…」と日本語に隣接する `...`・日本語を囲む半角の二重引用符と、箇条書き先頭の太字の
 ラベルを句点で区切った形（`- **名前**。説明`。S3）、ラベルを含めた行に日本語があるときの
 ラベル直後の半角コロン（`- **名前**: 説明`・`- **名前:** 説明`。S3）が対象。コードスパン・
-コードフェンス・表・見出し・URL・Markdown のリンク先・引用行は対象外。強シグナルではないので、強シグナルの基準
+コードフェンス・表・見出し・URL・Markdown のリンク先・引用行と、例示のラベル（「例:」「Before:」
+「悪い例:」など）で始まる行は対象外。強シグナルではないので、強シグナルの基準
 （納品前セルフチェックの「強シグナルは 0」）と exit code は変わらない。
+
+コードフェンスは、開きと同じ文字が開き以上の長さで並び、その後ろに半角の空白かタブしか無い行でだけ閉じる
+（長いフェンスの中の短い並びや別の文字の並び、後ろに文字が続く並び、4 字以上字下げした並びでは閉じない）。
+行の区切りは Python の `splitlines()` に従う。Markdown では行を分けない字（改ページ、垂直タブ、U+0085、
+U+2028、U+2029 など）でも行が分かれるので、その直後の並びはフェンスの開きにも表の行にもなる。表は、先頭が `|` の行と、区切り行（`---|---`）で始まりが
+分かる表の `|` を含む行。語句の検査は表の行も見る。表を除くのは記号とダッシュの検査だけ。
 
 --baseline を渡すと、前回スキャンとの差分を resolved（前回あり今回なし）/
 new（今回のみ）/ persisting（両方）に仕分けて出力に加える。finding の同一性は
@@ -223,26 +230,20 @@ _REFERENCE_WEAK_BY_CATEGORY = {
 
 BOLD = re.compile(r"\*\*[^*\n]+?\*\*|__[^_\n]+?__|<(?:b|strong)>(?:(?!</?(?:b|strong)>).)*</(?:b|strong)>")
 HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
-FENCE = re.compile(r"^\s{0,3}(```|~~~)")
+# コードフェンスの開き。バッククォートかチルダが 3 個以上並ぶ行（並びと、その後ろを取り出す）
+FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})(.*)$")
 # ダッシュは違反のカテゴリではなく統計欄の数値だけに使う。連続する「——」は 1 個と数える
 DASH_RUN = re.compile(r"[—―]+")
 PROSE_INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
 TABLE_ROW = re.compile(r"^\s*\|")
-
-
-def prose_lines(lines):
-    """地の文の (行番号, 行) を順に返す。表の行・コードフェンス・見出しを除き、
-    インラインコードを空白 1 文字に置き換えた行。"""
-    fence = False
-    for i, line in enumerate(lines, 1):
-        if FENCE.match(line):
-            fence = not fence
-            continue
-        if fence or HEADING.match(line) or TABLE_ROW.match(line):
-            continue
-        # 空白 1 文字に置き換える。空文字だと前後のダッシュがつながって 1 個に縮む
-        yield i, PROSE_INLINE_CODE.sub(" ", line)
-
+# 表の区切り行（`---|---`、`| :-- | --: |`、`-|-` など）。字下げは空白 3 つまで
+TABLE_DELIMITER = re.compile(r" {0,3}(?:\|[ \t]*)?:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*(?:\|[ \t]*)?")
+THEMATIC_BREAK = re.compile(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}")
+# タグ名で始まる HTML のブロック（PARAGRAPH_HTML_BLOCK）のほかに、段落や表を中断する HTML のブロックの開き。
+# script・pre・style・textarea（大文字小文字を問わない）、コメント、処理命令、宣言（`<!` の次が大文字）、CDATA。
+# 小文字の `<!doctype …>` は、GitHub でも段落の計測でも宣言として扱われないので、ここでも開きにしない
+HTML_BLOCK_OPENING = re.compile(
+    r" {0,3}<(?:(?i:script|pre|style|textarea)(?:[ \t>]|$)|!--|\?|![A-Z]|!\[CDATA\[)")
 
 # --- 通常段落の弱シグナル（S10）-----------------------------------------------
 PARAGRAPH_SENTENCES = 5
@@ -259,6 +260,121 @@ PARAGRAPH_HTML_BLOCK = re.compile(
     r"form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|"
     r"menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|"
     r"tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)", re.I)
+
+
+def fence_marks(lines):
+    """行ごとに、コードフェンスの行（開き・中身・閉じ）なら True を並べたリストを返す。
+
+    閉じるのは、開きと同じ文字が開き以上の長さで並び、ほかに半角の空白かタブしか無い行だけ。長いフェンスの中の
+    短い並び、別の文字の並び、後ろに文字が続く並び（「```python」）では閉じない。バッククォートの
+    並びは、同じ行の後ろにバッククォートがあればコードスパンなので、フェンスを開かない。
+    閉じないフェンスは文書の終わりまで続く。
+
+    開きと閉じは、その行の形だけで決める。見るのは、その行の頭の字下げ（3 字まで）と、その後ろの並び（上の
+    閉じる条件とコードスパンの条件）だけで、その行がリストの項目・引用・HTML のブロック・段落のどこにあるかは見ない。字下げは、空白のほかに、
+    タブ・全角空白・改行しない空白（U+00A0）など、Python が空白と数える字も 1 字と数える（前からの判定。
+    タブ 1 つで字下げしたリストの項目の中のフェンスを拾うため）。このため、GitHub の描画と違う形がある。
+
+    開きにしない形（中身は本文として検査される）: 字下げが 4 字以上の並び（リストの項目の中で深く
+    字下げしたフェンスを含む）、引用（`>`）の中の並び、リストの記号と同じ行の並び（「- ```python」）。
+    閉じにもしない。
+
+    見分けない形（GitHub と違って、後ろの本文が検査されない）: GitHub ではフェンスの開きでない並びも、
+    行の形が合えば開きにし、閉じる行か文書の終わりまでを検査から外す。例: タブで字下げした並び
+    （リストの項目の外では、GitHub はフェンスにしない）。全角空白や U+00A0 で始まる並び（GitHub では段落）。
+    HTML のブロックの中の並び（コメントの中や、`<div>` のすぐ下。GitHub では HTML のまま）。
+    リストの項目の中で、字下げ 3 字までで開いて閉じ忘れたフェンス（GitHub では項目の終わりで閉じる。ここでは
+    文書の終わりまで続く）。上の「開きにしない形」で GitHub が開いたフェンスの、中身や閉じの行にある
+    字下げ 3 字までの並び（リストの記号と同じ行で開いたフェンスは、閉じの行がこれに当たり、その後ろの
+    本文は検査されない）。閉じる行も同じ数え方なので、タブ・全角空白・U+00A0 で字下げした並びでも閉じる。
+    GitHub はその並びでは閉じず、もっと後ろの行で閉じることがある。そのときは、GitHub が閉じの行と読む
+    その行を、ここでは新しい開きとして読む。
+    """
+    marks = []
+    opened = None  # 開いているフェンスの (文字, 長さ)
+    for line in lines:
+        if opened:
+            marks.append(True)
+            body = line.lstrip()
+            run = body.rstrip(" \t")
+            if len(line) - len(body) <= 3 and len(run) >= opened[1] and set(run) == {opened[0]}:
+                opened = None
+            continue
+        opening = FENCE.match(line)
+        if opening and not (opening[1][0] == "`" and "`" in opening[2]):
+            opened = (opening[1][0], len(opening[1]))
+        marks.append(opened is not None)
+    return marks
+
+
+def table_cells(line):
+    return line.strip().removeprefix("|").removesuffix("|").split("|")
+
+
+def table_delimiter(line, header):
+    """line が、header を見出し行とする表の区切り行か。
+
+    区切り行は、`|` を 1 つ以上含み、列の数が見出し行と同じ行。`|` の無い `---` は見出しの下線か区切り線で、
+    リストの項目の形の行（`- | -`）はリストなので、どちらも区切り行にしない（GitHub の描画と同じ）。
+    """
+    return bool("|" in line and TABLE_DELIMITER.fullmatch(line) and not PARAGRAPH_LIST.match(line)
+                and len(table_cells(header)) == len(table_cells(line)))
+
+
+def table_marks(lines, fences):
+    """行ごとに、区切り行で始まりが分かる表の行なら True を並べたリストを返す。
+
+    表は、`|` を含む行の直後に区切り行（table_delimiter）があるときに始まる（先頭に `|` の無い
+    「列 | 値」の形も含む）。空行か、見出し・リスト・引用・HTML のブロック・区切り線・コードフェンスの
+    行で終わる。
+
+    GitHub の描画と意図して違える点: 表の範囲の中でも `|` を含まない行は、表の行に数えない（GitHub では
+    表の行になる）。見出し行に `|` が無い形（「本文」の下の `|---|`）も、表の始まりにしない（GitHub では
+    表になる）。どちらも、本文を検査から外さないため。
+
+    扱わない形: 引用（`>`）の中の表、リストの記号と同じ行から始まる表（「- 列 | 値」）、区切り行の字下げが
+    空白 4 つ以上の表（リストの項目の中で深く字下げした表を含む）は、表の始まりにしない。セルの中の
+    エスケープした `\\|` やコードスパンの中の `|` も列の区切りとして数えるので、列の数が合わなくなった表は
+    始まりにしない。どれも、行は本文として検査される。
+
+    見分けない形（GitHub と違って、行が検査されない）: 表の始まりは、`|` を含む行と、そのすぐ下の区切り行の
+    2 行だけで決める。コードフェンスの中かどうかのほかは、その 2 行より前の文脈は見ない。このため、GitHub が前の文脈から表にしない形でも、
+    2 行がそろえば表の始まりにし、その行と、続く `|` を含む行は検査されない。例: リストの項目や引用の
+    段落を、字下げや `>` を落として続けた行（GitHub では項目や引用の段落の続き）。リストの項目の中の行を
+    見出し行にして、区切り行だけが字下げを落とした形も同じ。
+    空白 4 つ以上かタブで字下げした行（GitHub では、前の行が段落でなければコードブロック）。閉じていない HTML のブロック（`<details>` など）の
+    中の行（GitHub では HTML のまま）。エスケープした `\\|` を区切りに数えたときだけ、見出し行と区切り行の
+    列の数が合う行（GitHub では `\\|` は区切りにならない）。表の終わりも、行ごとに決める。表の直後の、
+    タグだけの行（`<br>` など）や、空白 4 つ以上で字下げした行では表を終えない。リストの項目の中の表の
+    すぐ下に、字下げなしで続けた行でも終えない。どれも、その後ろの `|` を含む行は検査されない（GitHub では
+    表が終わる）。
+    """
+    marks = [False] * len(lines)
+    in_table = False
+    for index, line in enumerate(lines):
+        block_start = bool(PARAGRAPH_HEADING.match(line) or PARAGRAPH_LIST.match(line)
+                           or re.match(r"^ {0,3}>", line) or PARAGRAPH_HTML_BLOCK.match(line)
+                           or HTML_BLOCK_OPENING.match(line) or THEMATIC_BREAK.fullmatch(line))
+        if fences[index] or not line.strip() or block_start:
+            in_table = False
+        elif in_table:
+            marks[index] = "|" in line
+        elif "|" in line and index + 1 < len(lines) and table_delimiter(lines[index + 1], line):
+            marks[index] = in_table = True  # 次の行（区切り行）は、表の行として次の周で印が付く
+    return marks
+
+
+def prose_lines(lines):
+    """地の文の (行番号, 行) を順に返す。表の行・コードフェンス・見出しを除き、
+    インラインコードを空白 1 文字に置き換えた行。表の行は、先頭が `|` の行と、
+    区切り行で始まりが分かる表の行（table_marks）。"""
+    fences = fence_marks(lines)
+    tables = table_marks(lines, fences)
+    for i, line in enumerate(lines, 1):
+        if fences[i - 1] or tables[i - 1] or HEADING.match(line) or TABLE_ROW.match(line):
+            continue
+        # 空白 1 文字に置き換える。空文字だと前後のダッシュがつながって 1 個に縮む
+        yield i, PROSE_INLINE_CODE.sub(" ", line)
 
 
 class ParagraphUnsupported(ValueError):
@@ -413,8 +529,7 @@ def paragraph_container_content(body):
         if nested:
             raise ParagraphUnsupported("入れ子 container の fence 境界")
         return False, (fence[1][0], len(fence[1]))
-    if not body.strip() or body.startswith("    ") or PARAGRAPH_HEADING.match(body) or re.fullmatch(
-            r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", body):
+    if not body.strip() or body.startswith("    ") or PARAGRAPH_HEADING.match(body) or THEMATIC_BREAK.fullmatch(body):
         return False, None
     if PARAGRAPH_HTML_BLOCK.match(body) or body.lstrip().startswith(("|", "<")):
         raise ParagraphUnsupported("container 内部の table・山括弧表記の境界")
@@ -515,7 +630,7 @@ def paragraph_measure(text):
                     continue
                 interrupt = bool(PARAGRAPH_HEADING.match(line) or PARAGRAPH_FENCE.match(line)
                                  or PARAGRAPH_HTML_BLOCK.match(line) or quote or PARAGRAPH_LIST.match(line)
-                                 or re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line))
+                                 or THEMATIC_BREAK.fullmatch(line))
                 if interrupt or after_blank or container[2] is False:
                     container = None
                 else:
@@ -532,7 +647,7 @@ def paragraph_measure(text):
                 current.clear()  # リストより先に直前 paragraph の Setext を判定。
                 continue
             listing = PARAGRAPH_LIST.match(line)
-            if listing and not re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line):
+            if listing and not THEMATIC_BREAK.fullmatch(line):
                 # 2. は既存 paragraph を中断しない（先頭なら ordered list）。
                 if not current or re.match(r" {0,3}(?:[-+*]|1[.)])(?:[ \t]+|$)", line):
                     flush()
@@ -548,25 +663,22 @@ def paragraph_measure(text):
             if table:
                 interrupt = bool(PARAGRAPH_HEADING.match(line) or PARAGRAPH_FENCE.match(line)
                                  or PARAGRAPH_LIST.match(line) or re.match(r"^ {0,3}>", line)
-                                 or PARAGRAPH_HTML_BLOCK.match(line)
-                                 or re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line))
+                                 or PARAGRAPH_HTML_BLOCK.match(line) or HTML_BLOCK_OPENING.match(line)
+                                 or THEMATIC_BREAK.fullmatch(line))
                 if not interrupt:
                     continue  # CommonMark+table は pipe なしの本文行も table に含める。
                 table = False
-            if index + 1 < len(lines) and "|" in line and re.fullmatch(
-                    r" {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*(?:\|[ \t]*)?", lines[index + 1]):
+            if index + 1 < len(lines) and "|" in line and TABLE_DELIMITER.fullmatch(lines[index + 1]):
                 if "\\" in line or "`" in line:
                     raise ParagraphUnsupported("table 見出しの escape・code span")
-                header = line.strip().removeprefix("|").removesuffix("|").split("|")
-                delimiter = lines[index + 1].strip().removeprefix("|").removesuffix("|").split("|")
-                if len(header) == len(delimiter):
+                if len(table_cells(line)) == len(table_cells(lines[index + 1])):
                     flush()
                     table = True
                     continue
             if PARAGRAPH_HEADING.match(line):
                 flush()
                 continue
-            if re.fullmatch(r" {0,3}(?:\*\s*){3,}| {0,3}(?:-\s*){3,}| {0,3}(?:_\s*){3,}", line):
+            if THEMATIC_BREAK.fullmatch(line):
                 flush()
                 continue
             opening = PARAGRAPH_FENCE.match(line)
@@ -714,8 +826,8 @@ SYMBOL_PATTERNS = [  # (表示する記号, パターン)
 
 
 def symbol_hits(lines):
-    """記号表記のヒット。コードスパン・フェンス・表・見出し・URL・Markdown のリンク先・引用行は対象外で、
-    日本語の文字を含まない行は記号が半角でも拾わない。ラベル直後の半角コロンだけは、ラベルを含めた
+    """記号表記のヒット。コードスパン・フェンス・表・見出し・URL・Markdown のリンク先・引用行と、
+    例示のラベルで始まる行（is_quotish）は対象外で、日本語の文字を含まない行は記号が半角でも拾わない。ラベル直後の半角コロンだけは、ラベルを含めた
     行に日本語があれば拾い、そのほかの記号はラベルを除いた残りに日本語があるときだけ拾う。"""
     found = []
     for i, line in prose_lines(lines):
@@ -815,18 +927,14 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
     reference = profile == "reference"
     weak_by_category = _REFERENCE_WEAK_BY_CATEGORY if reference else _WEAK_BY_CATEGORY
     lines = text.splitlines()
-    in_fence = False
+    fences = fence_marks(lines)
 
     def hits_of(patterns, category, masks=()):
         """category はカテゴリキー（principle_N_*）で弱シグナル集合の引き当てに使う。"""
         weak = weak_by_category.get(category, frozenset())
         found = []
-        fence = False
         for i, line in enumerate(lines, 1):
-            if FENCE.match(line):
-                fence = not fence
-                continue
-            if fence:
+            if fences[i - 1]:
                 continue
             probe = line
             for m in masks:
@@ -843,10 +951,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
 
     bold_hits = []
     for i, line in enumerate(lines, 1):
-        if FENCE.match(line):
-            in_fence = not in_fence
-            continue
-        if in_fence or HEADING.match(line):
+        if fences[i - 1] or HEADING.match(line):
             continue
         label_start = label_bold_start(line) if reference else None
         for m in BOLD.finditer(line):
@@ -859,12 +964,8 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
             })
 
     struct_hits = []
-    fence = False
     for i, line in enumerate(lines, 1):
-        if FENCE.match(line):
-            fence = not fence
-            continue
-        if fence:
+        if fences[i - 1]:
             continue
         m = STRUCTURE_DECL.search(line)
         if m:
@@ -1084,7 +1185,6 @@ def summarize_diff(diff):
 
 # --- 原文からの保持 -----------------------------------------------------------
 
-INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
 # 桁区切りは 3 桁ごとのカンマだけを数字の一部とみなす（「1, 2, 3」の列挙を 1 つに繋げない）
 NUMBER = re.compile(r"[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?")
 
@@ -1096,18 +1196,16 @@ def preserve_targets(text: str):
     NFKC で全角を半角に直して桁区切りのカンマを除く。
     """
     numbers, codes = {}, {}
-    fence = False
-    for i, line in enumerate(text.splitlines(), 1):
-        if FENCE.match(line):
-            fence = not fence
+    lines = text.splitlines()
+    fences = fence_marks(lines)
+    for i, line in enumerate(lines, 1):
+        if fences[i - 1]:
             continue
-        if fence:
-            continue
-        for m in INLINE_CODE.finditer(line):
+        for m in PROSE_INLINE_CODE.finditer(line):
             code = m.group(2).strip()
             if code:
                 codes.setdefault(code, i)
-        rest = unicodedata.normalize("NFKC", INLINE_CODE.sub(" ", line))
+        rest = unicodedata.normalize("NFKC", PROSE_INLINE_CODE.sub(" ", line))
         for m in NUMBER.finditer(rest):
             numbers.setdefault(m.group(0).replace(",", ""), i)
     return numbers, codes
@@ -1116,7 +1214,8 @@ def preserve_targets(text: str):
 def load_preserve(path):
     """原文を読む。読めなければ、検出結果と区別するため理由を表示して exit 1 する。"""
     try:
-        with open(path, encoding="utf-8") as f:
+        # 先頭の BOM は読み飛ばす（下の、検査する文書の読み方と同じ）
+        with open(path, encoding="utf-8-sig") as f:
             return unicodedata.normalize("NFC", f.read())
     except (OSError, UnicodeDecodeError) as e:
         sys.exit(f"エラー: --preserve の原文を読めません ({path}): {e}")
@@ -1305,7 +1404,9 @@ def main():
     if args.paragraphs_unmeasured is not None and not args.paragraphs_unmeasured.strip():
         ap.error("--paragraphs-unmeasured には理由が必要です")
 
-    with open(args.file, encoding="utf-8") as f:
+    # 先頭の BOM（U+FEFF）は読み飛ばす。残すと、1 行目のコードフェンス・見出し・`|` で始まる表の行がそれと読まれず、
+    # その行や後ろの本文の扱いがずれる
+    with open(args.file, encoding="utf-8-sig") as f:
         original_text = f.read()
         text = unicodedata.normalize("NFC", original_text)
 

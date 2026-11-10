@@ -5,7 +5,7 @@ description: >-
   事実リストを先に作り、草稿を渡さない別文脈で裏取りしてから絵と文に翻訳する。
   ユーザーが「/explain <topic>」で起動するほか、「分かりやすく図解して」「何も知らない人向けに説明して」「初心者向けに絵で説明して」と言われたときに使う。
   レベル（5 歳・小学生・中学生・高校生・大人）と形（一直線・分岐・状態遷移・往復）と深さ（--deep）と出力先（Artifact で）は自然言語で受ける。
-  使わない: README・Issue・手順書など参照系技術文書の執筆（それは tech-write）、設計メモ・ADR・提案書など判断や主張を伝える散文の執筆（それは retention-write）、既存文書のレビュー（それは tech-review / retention-review）、既存コードの構造調査（それは調査系スキル）。
+  使わない: README・Issue・手順書など参照系技術文書の執筆（それは tech-write）、設計メモ・ADR・提案書など判断や主張を伝える散文の執筆（それは retention-write）、既存文書のレビュー（それは tech-review / retention-review）、既存コードの構造調査。
 argument-hint: "<topic> [レベル: 5 歳|小学生|中学生|高校生|大人] [形：一直線|分岐|状態遷移|往復] [--deep] [Artifact で]"
 allowed-tools: ["Read", "Write", "Glob", "Grep", "Agent", "WebSearch", "WebFetch", "mcp__plugin_context7_context7__resolve-library-id", "mcp__plugin_context7_context7__query-docs", "Artifact"]
 ---
@@ -21,7 +21,8 @@ allowed-tools: ["Read", "Write", "Glob", "Grep", "Agent", "WebSearch", "WebFetch
 ## 同梱資料の解決
 
 起動時に渡されたスキルの場所 `${CLAUDE_SKILL_DIR}` を、次のコマンドで実体のディレクトリに解決する。
-この文字列が未置換のホストでは、スキルを読み込んだときに示されたディレクトリを引数に渡す。
+この文字列が置き換えられずに残るホストでは、実行する前に、引数を、スキルを読み込んだときに示されたディレクトリに書き換える。
+引数が空のまま実行すると、コマンドは終了コード 1 で止まる。これも下の失敗に当たり、引数を入れ直して実行し直さない。
 現在の作業場所や個人の固定パスから推測しない。
 
 このコマンドだけを単独の Bash 呼出しで実行し、別のコマンドを連結しない。
@@ -33,7 +34,7 @@ allowed-tools: ["Read", "Write", "Glob", "Grep", "Agent", "WebSearch", "WebFetch
 停止の報告を補うための入力読取りや一覧取得も行わず、追加の道具を呼び出さずにその応答を終える。
 
 ```bash
-python3 -c 'from pathlib import Path; import sys; p = Path(sys.argv[1]).resolve(strict=True); print(p); print(p.parent); print(p.parent.parent / "memorable-doc-principles.md")' "${CLAUDE_SKILL_DIR}"
+python3 -c 'from pathlib import Path; import sys; a = sys.argv[1]; a or sys.exit("スキルの場所が空です"); p = Path(a).resolve(strict=True); print(p); print(p.parent); print(p.parent.parent / "memorable-doc-principles.md")' "${CLAUDE_SKILL_DIR}"
 ```
 
 出力の順は、このスキルの実体ディレクトリ、兄弟のスキルを含む `skills` ディレクトリ、規範のパスである。
@@ -102,9 +103,7 @@ Read する。
 | `tech-review/SKILL.md` の「HTML 入力」節 | HTML から本文を抜き出す規則 | 読みやすさ点検 |
 | `retention-write/references/html-output.md` の「スクリーンショット確認」「目視チェックリスト」節 | 描画した画面を撮る道具の順序と手順、崩れの点検項目 | 描画の点検 |
 
-裏取りの意味論は rite プラグインの pr-review スキルの references 内にある `fact-check.md` と保管庫 Wiki のものを採るが、
-実行時にそれらを Read しない。意味論は `references/fact-check.md` に書き写してあり、裏取りは
-このスキルの資料だけで動く。
+裏取りの意味論は `references/fact-check.md` に書いてあり、裏取りはこのスキルの資料だけで動く。
 
 ## 手順
 
@@ -196,7 +195,7 @@ Read する。
 - **読了チェック 3 問は上の階と宣言した前提だけで答えられる**：宣言があるときは上の階と
   「前提とした知識」だけを読んで 3 問に答え、事実リスト・出典など他の下の階の情報を必要としないことを
   確かめる。宣言が空のときは従来どおり上の階だけで答えられることを検査する。
-  着地の内容を問うなら、着地も上の階の情報として扱う
+  着地の内容を問うなら、着地も上の階の情報として扱う。
   3 問のうち少なくとも 1 問が、記録したつまずき点への答えを問うことも確かめる。
 
 処置は次のとおり。

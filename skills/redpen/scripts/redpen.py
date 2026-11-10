@@ -65,6 +65,15 @@ def is_html(path):
     return path.suffix.lower() in (".html", ".htm")
 
 
+def storable(value):
+    """UTF-8 で保存できる文字列か。単独のサロゲート（絵文字などの半分だけ）を含む文字列は保存できない。"""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def _front_matter_close(lines):
     if not lines or lines[0].rstrip() != "---":
         return None
@@ -113,10 +122,11 @@ def parse_blocks(text):
 
 
 def read_target(target):
-    text = target.read_text(encoding="utf-8")
+    # 先頭の BOM（U+FEFF）は読み飛ばす。残すと、1 行目の見出し・front matter・フェンスがそれと読まれない
+    text = target.read_text(encoding="utf-8-sig")
     if is_html(target):
-        return {"mode": "html", "name": target.name, "html": text}
-    return {"mode": "md", "name": target.name, "blocks": parse_blocks(text)}
+        return {"mode": "html", "html": text}
+    return {"mode": "md", "blocks": parse_blocks(text)}
 
 
 class ReviewFile:
@@ -293,7 +303,7 @@ def make_handler(target, review, port_box):
         def route_get(self):
             path = urlsplit(self.path).path
             if path == "/":
-                cfg = {"server": True, "name": target.name, "mode": "html" if is_html(target) else "md"}
+                cfg = {"server": True, "name": target.name}
                 self.send_bytes(200, render_app(cfg).encode("utf-8"), "text/html; charset=utf-8")
             elif path == "/api/doc":
                 try:
@@ -351,7 +361,11 @@ def make_handler(target, review, port_box):
                 self.send_json(400, {"error": "target（block:<n> か selector:<css>）と text が要ります"})
                 return
             label = body.get("label") if isinstance(body.get("label"), str) else ""
-            self.send_json(200, {"comment": review.add(body["target"], label, body["text"])})
+            if storable(body["target"]) and storable(label) and storable(body["text"]):
+                self.send_json(200, {"comment": review.add(body["target"], label, body["text"])})
+            else:
+                # そのまま保存すると UnicodeEncodeError で 500 になり、朱のファイルは書かれない
+                self.send_json(400, {"error": "保存できない文字（半分だけの絵文字など）が、朱の場所・抜粋・本文のどれかにあります"})
 
         def route_patch(self):
             m = re.fullmatch(r"/api/comments/([A-Za-z0-9_-]+)", urlsplit(self.path).path)
@@ -391,7 +405,6 @@ def write_static(target):
     cfg = {
         "server": False,
         "name": target.name,
-        "mode": "html" if is_html(target) else "md",
         "doc": read_target(target),
         "comments": review.load()["comments"],
         "storageKey": "redpen:" + str(target),
@@ -480,8 +493,8 @@ button { font:inherit; font-size:13px; padding:4px 10px; border:1px solid var(--
 button.primary { background:var(--red); border-color:var(--red); color:#fff; }
 button[aria-pressed="true"] { background:var(--red-soft); border-color:var(--red); color:var(--red); }
 #status { font-size:12px; color:var(--muted); margin-left:auto; }
-#notice { display:none; padding:8px 16px; background:var(--red-soft); color:var(--ink); font-size:13px; }
-#notice.show { display:block; }
+#notice, #unsaved { display:none; padding:8px 16px; background:var(--red-soft); color:var(--ink); font-size:13px; }
+#notice.show, #unsaved.show { display:block; }
 .wrap { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; padding:16px; }
 @media (max-width: 860px) { .wrap { grid-template-columns:minmax(0,1fr); } }
 #doc { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 24px; min-width:0; }
@@ -520,6 +533,7 @@ aside { min-width:0; }
   <span id="status"></span>
 </header>
 <div id="notice"></div>
+<div id="unsaved"></div>
 <div class="wrap">
   <main id="doc"></main>
   <aside>
@@ -537,34 +551,78 @@ aside { min-width:0; }
   var composerEl = document.getElementById('composer');
   var statusEl = document.getElementById('status');
   var noticeEl = document.getElementById('notice');
+  var unsavedEl = document.getElementById('unsaved');
   var modeBtn = document.getElementById('mode');
   var copybox = document.getElementById('copybox');
-  var state = { doc: null, comments: [], local: [], redOn: true, pending: null, frame: null, versions: {} };
+  var state = { doc: null, comments: [], local: [], redOn: true, pending: null, frame: null, versions: {}, saveError: '' };
 
   document.getElementById('name').textContent = CFG.name;
+  /* 操作の結果（保存した・コピーした・状態を変えられなかった）は setStatus に出す。次の操作の結果が出るまで残る */
   function setStatus(t) { statusEl.textContent = t; }
-  function notice(t) { noticeEl.textContent = t; noticeEl.classList.toggle('show', !!t); }
+  /* 知らせの欄は、続いている状態（サーバーに届かない・サーバーが失敗を返す・最初の読み込みに失敗した）だけに使う。
+     定期確認（poll）が、版の確認とその回の読み直しまで通り、本文の読み直しの失敗も残っていないときに消す。
+     最初の読み込みに失敗したときは、定期確認を始めないので、ページを読み込み直すまで消えない。
+     保存できなかった朱の知らせは、別の欄（renderUnsaved）に状態から出す */
+  function notice(t) {
+    noticeEl.textContent = t;
+    noticeEl.classList.toggle('show', !!t);
+  }
 
+  /* ---- ここから「ここまで」の印までは、ページの要素に触れない関数。dev/tests/test_redpen.py が node で動かす ---- */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-  function safeUrl(u) { return /^(https?:\/\/|mailto:|#|\.{0,2}\/|[A-Za-z0-9_\-][^:]*$)/i.test(u); }
+  /* esc の逆。URL は、逃がす前の字に戻してから判定し、属性に入れるときに 1 回だけ逃がす */
+  function unesc(s) {
+    return String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  /* スキーム（javascript: など）のある URL を通さないための判定。通すのは、http(s)・mailto、ページ内の #、
+     / か ./ か ../ で始まるパス、コロンを 1 つも含まない相対パス（日本語や % で始まる名前を含む）だけ */
+  function safeUrl(u) { return /^(https?:\/\/|mailto:|#|\.{0,2}\/|[^:]*$)/i.test(u); }
+  /* 朱の抜粋を 80 字までにする。UTF-16 の単位でなく文字（コードポイント）で数え、半分だけの文字（単独の
+     サロゲート）は落とす。単位で切ると絵文字などの半分が末尾に残り、UTF-8 で保存できない。HTML の文書の枠
+     （FRAME_SCRIPT）は単位で切って送ってくるので、その末尾の半分もここで落ちる。数えるのは見た目の 1 文字では
+     ないので、いくつかの文字をつないだ絵文字（家族・国旗など）は途中で切れることがある（保存はできる） */
+  function clip(s) {
+    return Array.from(String(s)).filter(function (ch) { return !/^[\uD800-\uDFFF]$/.test(ch); }).slice(0, 80).join('');
+  }
+  /* 書きかけの朱。抜粋はここで切る */
+  function draftOf(target, label) { return { target: target, label: clip(label) }; }
+  /* サーバーが付ける時刻と同じ形（その場所の時刻と UTC との差。例 2026-11-10T12:34:56+0900） */
+  function nowStamp(d) {
+    d = d || new Date();
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    var off = -d.getTimezoneOffset(), a = Math.abs(off);
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' +
+      p(d.getMinutes()) + ':' + p(d.getSeconds()) + (off < 0 ? '-' : '+') + p(Math.floor(a / 60)) + p(a % 60);
+  }
+  /* このページにだけ置く朱（サーバーなしで付けた朱と、サーバーに保存できなかった朱）。サーバーが保存する朱と同じ形 */
+  function localComment(id, body, d) {
+    return { id: id, target: body.target, label: body.label, text: body.text, status: 'open', createdAt: nowStamp(d) };
+  }
+  /* 1 行の中の記法を HTML にする。組み立てたタグ（コード、画像、リンクの開始タグ）は控えに入れて印（\u0000 番号
+     \u0000）に替え、最後に戻す。後ろの置き換えが、前の置き換えの作ったタグを本文として読み直さないようにするため
+     （読み直すと、画像の URL の中にリンクを書いた行から、タグの属性を作れてしまう）。印の字は本文から先に除き、
+     URL には許さない */
   function inline(s) {
-    var codes = [];
-    s = s.replace(/`([^`]+)`/g, function (_, c) { codes.push(c); return '\u0000' + (codes.length - 1) + '\u0000'; });
+    var kept = [];
+    function keep(html) { kept.push(html); return '\u0000' + (kept.length - 1) + '\u0000'; }
+    function back(x) { return x.replace(/\u0000(\d+)\u0000/g, function (_, i) { return back(kept[+i]); }); }
+    s = s.replace(/\u0000/g, '').replace(/`([^`]+)`/g, function (_, c) { return keep('<code>' + esc(c) + '</code>'); });
     s = esc(s)
-      .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function (m, alt, u) {
-        u = u.replace(/&amp;/g, '&');
-        return safeUrl(u) ? '<img alt="' + alt + '" src="' + esc(u) + '">' : m;
+      .replace(/!\[([^\]]*)\]\(([^)\s\u0000]+)\)/g, function (m, alt, u) {
+        u = unesc(u);
+        return safeUrl(u) ? keep('<img alt="' + alt + '" src="' + esc(u) + '">') : m;
       })
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (m, t, u) {
-        u = u.replace(/&amp;/g, '&');
-        return safeUrl(u) ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + t + '</a>' : t + ' (' + esc(u) + ')';
+      .replace(/\[([^\]]+)\]\(([^)\s\u0000]+)\)/g, function (m, t, u) {
+        u = unesc(u);
+        return safeUrl(u) ? keep('<a href="' + esc(u) + '" target="_blank" rel="noopener">') + t + '</a>' : t + ' (' + esc(u) + ')';
       })
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
-    return s.replace(/\u0000(\d+)\u0000/g, function (_, i) { return '<code>' + esc(codes[+i]) + '</code>'; });
+    return back(s);
   }
   function cells(line) {
     return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); });
@@ -577,7 +635,13 @@ aside { min-width:0; }
       var depth = Math.floor(m[1].replace(/\t/g, '    ').length / 2);
       var tag = /\d/.test(m[2]) ? 'ol' : 'ul';
       while (stack.length > depth + 1) out += '</li></' + stack.pop() + '>';
-      if (stack.length < depth + 1) { out += '<' + tag + '>'; stack.push(tag); }
+      if (stack.length < depth + 1) {
+        /* 空行で区切った番号付きリストは項目ごとに別のブロックになるので、書いてある番号から始める。
+           桁の多い番号（CommonMark が番号と認めるのは 9 桁まで）の扱いは決めていない */
+        var first = tag === 'ol' ? parseInt(m[2], 10) : 1;
+        out += first === 1 ? '<' + tag + '>' : '<ol start="' + first + '">';
+        stack.push(tag);
+      }
       else out += '</li>';
       out += '<li>' + inline(m[3]);
     });
@@ -611,6 +675,7 @@ aside { min-width:0; }
     return html + '<p>' + lines.map(inline).join('<br>') + '</p>';
   }
   function plain(src) { return src.replace(/[#>*`|\[\]!_-]/g, ' ').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim(); }
+  /* ---- ここまで ---- */
 
   /* ---- 朱の場所 ---- */
   function blockFor(c) {
@@ -695,7 +760,7 @@ aside { min-width:0; }
 
   /* ---- 朱を書く ---- */
   function openComposer(target, label) {
-    state.pending = { target: target, label: label.slice(0, 80) };
+    state.pending = draftOf(target, label);
     composerEl.innerHTML = '<div class="composer"><div class="where">' + esc(state.pending.label || target) + '</div>' +
       '<textarea id="ctext" placeholder="ここをどう直してほしいか"></textarea>' +
       '<div class="row"><button class="primary" id="csave">朱を保存</button><button id="ccancel">取消</button></div></div>';
@@ -710,17 +775,34 @@ aside { min-width:0; }
   }
   function closeComposer() { state.pending = null; composerEl.innerHTML = ''; }
 
-  function nowStamp() { return new Date().toISOString(); }
+  /* 失敗した応答の理由。サーバーが返した文（error）があればそれを、無ければ状態の番号を使う */
+  function refused(r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      var e = new Error(j.error || 'HTTP ' + r.status);
+      e.refused = true;
+      throw e;
+    });
+  }
+  /* fetch そのものの失敗（サーバーに届かなかった）に印を付ける */
+  function offline(e) { e.offline = true; throw e; }
+  /* 読み込みの失敗の知らせ。届かなかったのか、サーバーが失敗を返したのか、届いた内容を扱えなかったのかを言い分ける */
+  function loadFailed(e) {
+    var what = e.offline ? 'サーバーに届きません' : e.refused ? 'サーバーが失敗を返しました' : '読み込んだ内容を扱えませんでした';
+    notice(what + '（' + e.message + '）。付けた朱は「朱をまとめてコピー」で会話に貼れます。');
+  }
+  /* 朱の読み直しの失敗。版を古いままの印（stale）にして、次の定期確認で読み直す（版を確かめている途中の
+     定期確認が、前の版のまま「変わっていない」と見て知らせを消さないように。すでに朱を読みに行っている
+     定期確認が、保存より前の中身で通ったときは、知らせが次の定期確認まで消える） */
+  function markStale(e) { state.versions.comments = 'stale'; throw e; }
   function saveComment(target, label, text) {
     var body = { target: target, label: label, text: text };
     if (!CFG.server) { addLocal(body); return; }
+    /* 保存の失敗として扱うのは、POST が届かなかったときと断られたときだけ。保存できた後の読み直しの失敗は、
+       読み込みの失敗の知らせ（loadFailed）に出す（保存できた朱を、このページにもう 1 件足さない） */
     fetch('api/comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(function () { closeComposer(); setStatus('朱を保存しました'); return loadComments(); })
-      .catch(function (e) {
-        addLocal(body);
-        notice('サーバーに保存できませんでした（' + e.message + '）。この朱はこのページにだけあります。「朱をまとめてコピー」で会話に貼ってください。');
-      });
+      .then(function (r) { if (!r.ok) return refused(r); })
+      .then(function () { closeComposer(); setStatus('朱を保存しました'); loadComments().catch(markStale).catch(loadFailed); },
+        function (e) { state.saveError = e.message; addLocal(body); });
   }
   function addLocal(body) {
     var used = {};
@@ -729,7 +811,7 @@ aside { min-width:0; }
        ほかと重ならない id にする（書き出し直したページで、取り込み済みの控えを id で外すため） */
     var id;
     do { id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); } while (used[id]);
-    state.local.push({ id: id, target: body.target, label: body.label, text: body.text, status: 'open', createdAt: nowStamp() });
+    state.local.push(localComment(id, body));
     persistLocal();
     closeComposer();
     setStatus('朱をこのページに保存しました');
@@ -764,11 +846,20 @@ aside { min-width:0; }
   }
   function setCommentStatus(id, status) {
     fetch('api/comments/' + encodeURIComponent(id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: status }) })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return loadComments(); })
-      .catch(function (e) { notice('状態を変えられませんでした（' + e.message + '）'); });
+      .then(function (r) { if (!r.ok) return refused(r); })
+      .then(function () { setStatus('朱の状態を変えました'); loadComments().catch(markStale).catch(loadFailed); },
+        function (e) { setStatus('朱の状態を変えられませんでした（' + e.message + '）'); });
+  }
+  /* サーバーに保存できずにこのページにだけある朱の知らせ。朱が残っている間は出し続ける */
+  function renderUnsaved() {
+    var n = CFG.server ? state.local.length : 0;
+    unsavedEl.textContent = n ? 'サーバーに保存できなかった朱が ' + n + ' 件あります（最後の理由: ' + state.saveError +
+      '）。この朱はこのページにだけあり、ページを読み込み直すと消えます。「朱をまとめてコピー」で会話に貼ってください。' : '';
+    unsavedEl.classList.toggle('show', !!n);
   }
   function renderAll() {
     renderList();
+    renderUnsaved();
     if (state.doc.mode === 'md') renderDoc(); else syncFrame();
   }
 
@@ -795,32 +886,42 @@ aside { min-width:0; }
   /* ---- 読み込みと更新の監視 ---- */
   function getJson(u) {
     return fetch(u, { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || 'HTTP ' + r.status); });
-      return r.json();
-    });
+      return r.ok ? r.json() : refused(r);
+    }, offline);
   }
   function loadDoc() { return getJson('api/doc').then(function (d) { state.doc = d; }); }
   function loadComments() { return getJson('api/comments').then(function (d) { state.comments = d.comments || []; renderAll(); }); }
   function poll() {
     getJson('api/version').then(function (v) {
-      notice('');
       var docChanged = state.versions.doc && v.doc !== state.versions.doc;
       var cmChanged = state.versions.comments && v.comments !== state.versions.comments;
+      var docFailed = state.versions.doc === 'failed';
       state.versions = v;
+      /* 本文の読み直しに失敗したら、版を失敗の印（failed）にして理由を取っておき、次の定期確認で読み直す。
+         本文は読み直せて、続く朱の読み直しだけが失敗したときは、朱の版だけを古いままの印にする
+         （朱の読み直しは、朱を書いている間も、次の定期確認でやり直す） */
       if (docChanged && !state.pending) {
-        return loadDoc().then(function () { renderDoc(); return loadComments(); }).then(function () { setStatus('本文の更新を反映しました'); });
+        return loadDoc().then(function () { renderDoc(); })
+          .catch(function (e) { state.versions.doc = 'failed'; state.docError = e; throw e; })
+          .then(function () { return loadComments().catch(markStale); })
+          .then(function () { setStatus('本文の更新を反映しました'); });
       }
-      if (docChanged) state.versions.doc = 'stale';
-      if (cmChanged) return loadComments();
-    }).catch(function (e) {
-      notice('サーバーに届きません（' + e.message + '）。付けた朱は「朱をまとめてコピー」で会話に貼れます。');
-    }).then(function () { setTimeout(poll, 1500); });
+      /* 朱を書いている間は、本文を読み直さずに待つ（stale）。前の読み直しが失敗していたら、失敗の印を残す */
+      if (docChanged) state.versions.doc = docFailed ? 'failed' : 'stale';
+      if (cmChanged) return loadComments().catch(markStale);
+      /* 知らせを消すのは、この回が最後まで通り、本文の読み直しの失敗も残っていないときだけ。読み直しが失敗し続ける間と、
+         失敗した後に朱を書いていて読み直しを待っている間は、知らせを出したままにする
+         （先に消してから出し直すと、1.5 秒ごとに点滅する） */
+    }).then(function () { if (state.versions.doc === 'failed') loadFailed(state.docError); else notice(''); }, loadFailed)
+      .then(function () { setTimeout(poll, 1500); });
   }
 
   if (CFG.server) {
-    loadDoc().then(function () { renderDoc(); return loadComments(); })
+    /* 版を先に取ってから読む。読んでいる間に本文や朱が変わっても、最初の定期確認が版の違いに気づいて読み直す */
+    getJson('api/version').then(function (v) { state.versions = v; return loadDoc(); })
+      .then(function () { renderDoc(); return loadComments(); })
       .then(function () { setStatus('朱はファイルの隣の .review.json に保存されます'); poll(); })
-      .catch(function (e) { notice('読み込みに失敗しました: ' + e.message); });
+      .catch(function (e) { notice('読み込みに失敗しました（' + e.message + '）。ページを読み込み直してください。'); });
   } else {
     state.doc = CFG.doc;
     state.comments = CFG.comments || [];
@@ -830,7 +931,8 @@ aside { min-width:0; }
     state.comments.forEach(function (c) { known[c.id] = 1; });
     state.local = (Array.isArray(state.local) ? state.local : []).filter(function (c) { return c && !known[c.id]; });
     persistLocal();
-    renderDoc();
+    /* Markdown の本文は renderAll が組み立てる。HTML の本文（枠）だけ先に作る */
+    if (state.doc.mode === 'html') renderDoc();
     renderAll();
     setStatus('サーバーなしで開いています。付けた朱は「朱をまとめてコピー」で会話に貼ってください');
   }

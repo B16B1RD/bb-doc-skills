@@ -301,7 +301,7 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 | スキル | 本文の書体 | 見出しの書体 | コードの書体 | アクセント（ライト / ダーク） | `--hi`・`--mark`（ライト / ダーク） | `--panel`（ライト / ダーク） | `--c1`・`--c1-soft`（ライト / ダーク） |
 |--------|-----------|-------------|-------------|------------------------------|-----------------------------------|-----------------------------|--------------------------------------|
 | explain | Noto Sans JP | Noto Sans JP | Source Code Pro | 青 `#1f5fbf` / `#6fa3ef` | `#dde8f8` / `#1d3150` | `#f3f6fb` / `#161c26` | 緑 `#1a7f37`・`#dcf0e1` / `#3fb950`・`#1c3524` |
-| retention-write | 本文 Noto Serif JP | Noto Serif JP | Source Code Pro | 藍 `#2c4a7a` / `#8fb0e6` | `#e1e7f1` / `#24324a` | `#f3f5f9` / `#191e28` | 緑 `#1a7f37`・`#dcf0e1` / `#3fb950`・`#1c3524` |
+| retention-write | Noto Serif JP | Noto Serif JP | Source Code Pro | 藍 `#2c4a7a` / `#8fb0e6` | `#e1e7f1` / `#24324a` | `#f3f5f9` / `#191e28` | 緑 `#1a7f37`・`#dcf0e1` / `#3fb950`・`#1c3524` |
 | tech-write | IBM Plex Sans JP | IBM Plex Sans JP | IBM Plex Mono | 緑 `#1a7f37` / `#3fb950` | `#dcf0e1` / `#1c3524` | `#f4f8f5` / `#17211a` | 青 `#1f5fbf`・`#e2ecfa` / `#79aef0`・`#1b2c44` |
 
 地・字・罫は無彩色にする。色には次の 2 つの役だけを持たせ、飾りのためには塗らない。
@@ -776,9 +776,9 @@ figcaption { margin-top: 1em; color: var(--muted); font-size: .9em; }
 | 項目 | 値 |
 |------|-----|
 | 渡すもの | 保存した `explain-<slug>.html` のパス |
-| `url` | **既存の Artifact を更新するときだけ**渡す。前回の URL を持っていないなら Artifact ツールの一覧機能（`action: "list"`）で探すか、ユーザーに URL を尋ねる。渡さずに公開すると、同じパスを渡しても別の Artifact が新しく作られる |
+| `url` | **既存の Artifact を更新するときだけ**渡す。前回の URL を持っていないなら Artifact ツールの一覧機能（`action: "list"`）で探すか、ユーザーに URL を尋ねる。渡さずに公開すると、同じパスを渡しても別の Artifact が新しく作られる。Artifact ツールが、更新の前にその URL の Artifact を読むこと（`action: "read"`）を求めるなら、先に読んでから渡す |
 | `<title>` | トピックの問い（例「DNS ってなに？」）。`<meta charset="utf-8">` の直後に置く。ツールの引数ではなく HTML 内のタグで持つ |
-| `favicon` | 📖 に固定する。再公開でも変えない |
+| アイコン | 本を表すものに固定し、再公開でも変えない。引数の名前と形は、その場の Artifact ツールの説明で確かめる。短い 1 語を取る `icon` なら `book`、絵文字を取る `favicon` なら 📖 を渡す |
 | `description` | 何を説明したページかを 1 文で。「DNS が名前を IP アドレスに変える道筋を、絵 5 枚と裏取り済みの事実 5 件で説明する」の形 |
 
 公開したら URL を納品報告に添える。Artifact ツールが無い・公開に失敗したときはローカル保存だけで
