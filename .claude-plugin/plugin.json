@@ -1,6 +1,6 @@
 {
   "name": "bb-doc-skills",
-  "version": "0.12.3",
+  "version": "0.13.0",
   "description": "Claude Code で使う、日本語の執筆・レビュー・図解と、書いた文書への朱入れの 6 スキル。",
   "author": {
     "name": "B16B1RD",

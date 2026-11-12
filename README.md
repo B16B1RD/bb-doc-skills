@@ -87,13 +87,13 @@ HTML は利用者の作業領域または指定された場所へ保存します
 | 資料・著者 | 取り入れた考え方 |
 |---|---|
 | [AIっぽい文章表現大全](https://note.com/yusuke_motoyama/n/n2a1218636f56) — もとやま | 規範と文書スキルの日本語文体の見直し。 |
-| [yomiyasu](https://github.com/nanaism/yomiyasu) — nanaism | 修正回数の上限と、原文にない事実を補わない規則。 |
+| [yomiyasu](https://github.com/nanaism/yomiyasu) — nanaism | 修正回数の上限と、原文にない事実を補わない規則。書き直しで許可・能力・義務・保証の言い切りを入れ替えないこと、漢語を開きすぎないこと、本文を一括置換で直さないこと。開発時に、スキルなし・数行の指示と目隠しで比べる評価。 |
 | [japanese-tech-writing](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d/8f2d57610a73efc97d743c9b0b0ecb1002e09fa4) — k16shikano | 4 文書スキルの論証・読者負荷・視点。 |
 | [編集者は日本語をどうやって推敲しているか](https://golden-lucky.hatenablog.com/entry/2026/08/20/185818) — golden-lucky | 段落の関係を読み、読者が迷う位置を見つける手順。 |
 | [ELI5](https://github.com/anthropics/claude-plugins-community/tree/main/eli5) — Thariq Shihipar | explain の絵を主役にした短い説明。 |
 | [説明スキルの比較：ELI5、Archify、Explainer](https://blog.lai.so/eli5-archify-explainer-skills/) — laiso | 説明手順の改善を検討するきっかけとなった比較。 |
-| [Explainer](https://github.com/mizchi/explainer) — mizchi | laiso の比較記事を介した、配布先の既知・未解決の問い・実行による裏取りの発想。 |
-| [Archify](https://github.com/tt-a1i/archify) — tt-a1i | laiso の比較記事を介した、題材に合う分岐・状態遷移・往復の図を選ぶ発想。 |
+| [Explainer](https://github.com/mizchi/explainer) — mizchi | laiso の比較記事を介した、配布先の既知・未解決の問い・実行による裏取りの発想。主張と根拠を両方向から消して確かめる点検。 |
+| [Archify](https://github.com/tt-a1i/archify) — tt-a1i | laiso の比較記事を介した、題材に合う分岐・状態遷移・往復の図を選ぶ発想。出典を読者が開けるリンクにすること、例の値を例と示すこと、計算で出した値を計算し直すこと、公開するページにローカルのパスを残さないこと。 |
 | [Writes and Write-Nots](https://paulgraham.com/writes.html) — Paul Graham | 文体を整える前に、書き手の決定と主張を確定する設計。 |
 | [Diátaxis](https://diataxis.fr/) — Daniele Procida and contributors | 読者の目的に応じて技術文書の原則を選ぶ設計。四象限をそのまま実装したものではない。 |
 | [rite workflow](https://github.com/B16B1RD/cc-rite-workflow) — B16B1RD and contributors | 共有 references、独立した読み手、裏取りの判定区分。 |
@@ -103,11 +103,11 @@ HTML は利用者の作業領域または指定された場所へ保存します
 | [Telling Lies to Children](https://serc.carleton.edu/earthandmind/posts/lies_children.html) — Kim Kastens and Dana Chayes | explain で単純化と、後で撤回が必要になる虚偽を区別する考え方。 |
 | [Chain-of-Verification](https://aclanthology.org/2024.findings-acl.212/) — Shehzaad Dhuliawala et al. | 草稿を見せない別文脈で事実を検証する発想。 |
 | [Enabling Large Language Models to Generate Text with Citations](https://arxiv.org/abs/2305.14627) — Tianyu Gao et al. | 主張ごとに出典の支持を確認する考え方。 |
-| [natural-japanese](https://github.com/coji/natural-japanese) — coji | 開発時の発動境界評価における train/test 分離と競合検出。 |
+| [natural-japanese](https://github.com/coji/natural-japanese) — coji | 開発時の発動境界評価における train/test 分離と競合検出。誤解されそうなときだけ打ち消しを残すこと、書き直して長くなった分を確かめること。retention-write の納品報告の先頭に、出す前の判定と、出す前にやることを書き換え先つきで出すこと。 |
 | [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) — Anthropic | 初期 4 スキルの作成・試走・改善。 |
 | [Defuddle](https://github.com/kepano/defuddle) — kepano and contributors | 評価資料の Web 本文抽出。 |
 
-natural-japanese・skill-creator・Defuddle は開発と評価の道具としての謝辞であり、実行時の依存ではありません。[文書設計の規範](memorable-doc-principles.md)には、このほかの研究出典も残しています。
+skill-creator・Defuddle は開発と評価の道具としての謝辞です。natural-japanese も含め、どれも実行時の依存ではありません。[文書設計の規範](memorable-doc-principles.md)には、このほかの研究出典も残しています。
 
 ## ライセンス
 
