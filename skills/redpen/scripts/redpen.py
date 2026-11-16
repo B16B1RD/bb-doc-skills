@@ -5,18 +5,36 @@ Python 3.9 以上の標準ライブラリだけで動く。本文は書き換え
 隣の `<対象ファイル>.review.json` に保存する。
 
   python3 redpen.py <file> [--port N]   ローカルサーバーを起動する（127.0.0.1 のみ）
+  python3 redpen.py <file> --rendered <URL>
+                                        原稿 <file> をビルドして表示したページ（手元の dev サーバーや
+                                        preview の URL）を表示し、その上で朱を付ける。朱は <file> の隣に保存する
   python3 redpen.py <file> --static     サーバーなしで開ける HTML を、対象ファイルの隣の
                                         `<対象ファイル>.redpen.html` に書き出す（図などの
                                         隣のファイルは同じフォルダから読むので、動かさずに開く）
 
 サーバーは対象ファイルのフォルダの中のファイルだけを、ページと同じ階層のパスで返す
 （Markdown や HTML の中の `./fig-1.svg` のような相対パスをそのまま表示するため）。
+--rendered のときは、フォルダの代わりに、その URL のサーバーから同じパスのものを取り寄せて返す
+（MDX の部品の図のように、ビルドしないと描けないものを表示するため）。取り寄せる先は手元
+（127.0.0.1・localhost・[::1]）の http だけで、利用者名（user@）つきの URL は断り、環境の proxy を使わず、
+転送（3xx）には従わない（ページが使うファイルの転送は 502 と理由の文、ページ自身の転送は、起動時は停止、起動後は /api/doc の 500）。要求の行のホストは使わず、/ で始まらないパスは 400 にする。
+ブラウザの要求のヘッダーは Accept だけを渡す。取り寄せた応答の Content-Type は、redpen が読んだ
+type/subtype と charset に書き直して返し（読めない値は application/octet-stream）、スクリプトが動きうる型には
+隣のファイルと同じく CSP の sandbox を付ける。取り寄せられないときは、URL つきの理由で止める（起動時は
+終了コード 2、起動後は 502 か /api/doc の 500）。ページの本文は、Content-Type で読めた charset（無ければ UTF-8。<meta charset> は見ない）で読み、読めないバイトを
+含むときと、知らない文字コード名のときは、置き換えて読まずに止める（起動時は終了コード 2、起動後は /api/doc の 500）。
+ページから redpen に届く要求のうち、ブラウザが Origin: null を付けるもの（モジュールのスクリプトの読み込みや fetch など）は
+拒否するので、
+それで描く部品（Astro の client:only の部品など）は出ず、client:load などの部品は、HTML は出るが動きは付かない。本文は取り寄せたページで、ページの基準の <base> を
+<head> の中（無ければ <!DOCTYPE> の後か先頭）に入れる。--rendered と --static は一緒に使えない。--rendered なしで開いた .mdx は、import・export の
+ブロックを出さず、< や { で始まるブロックを、何であるかと原文の枠で出す。
 Host と Origin を検証し、ほかのオリジンからの要求を拒否する。
 
 終了コード: 0 = 正常（--static は書き出し完了）、2 = 対象を読めないなどの起動エラー。
 """
 
 import argparse
+import http.client
 import json
 import mimetypes
 import os
@@ -26,22 +44,54 @@ import tempfile
 import threading
 import time
 import traceback
+from html import escape as html_escape, unescape as html_unescape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, unquote, urljoin, urlsplit
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 LABEL_LIMIT = 80
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+FETCH_TIMEOUT = 15
+# URL のパスと問い合わせで、% 符号化しない字（日本語や空白だけを符号化し、符号化済みの % は二重にしない）
+URL_SAFE = "/%:@!$&'()*+,;=?~"
 # スクリプトを動かさずに表示する型。これ以外の隣のファイルは、最上位で開いても sandbox で動かす
 # （スクリプトを動かせる型は HTML・SVG・XML 系と多く、数えきれないので、逆に安全な側を数える）
 PLAIN_TYPES = {"application/pdf", "text/plain", "text/css", "text/markdown", "application/json"}
 PLAIN_FAMILIES = ("image/", "audio/", "video/", "font/")
+# 型として読む値: type/subtype のどちらも、英数字と !#$&^.+-_ だけ（HTTP の token の字のうち、これ以外の字を含む型は、
+# 読めない値として、スクリプトが動く側に倒す）
+TYPE_RE = re.compile(r"[\w!#$&^.+-]+/[\w!#$&^.+-]+", re.ASCII)
 
 
 def needs_sandbox(ctype):
-    if ctype == "image/svg+xml":
+    # 引数（; charset=…）と大文字小文字を先に落とす
+    ctype = ctype.split(";", 1)[0].strip(" \t").lower()
+    # 1 つの type/subtype として読めない値（カンマで並んだ型、subtype の無い型、TYPE_RE の字の外の字を含む型）は、
+    # ブラウザが別の型と読むか中身から推しうるので、動く側に倒す（ブラウザは並んだ型の最後を使うので、
+    # image/png,image/svg+xml は SVG として描かれうる）。XML の型（subtype が xml か +xml で終わる。
+    # image/svg+xml を含む）は、どの type でも XML の文書として開かれ、スクリプトが動きうる
+    if not TYPE_RE.fullmatch(ctype):
         return True
-    ctype = ctype.split(";", 1)[0].strip()
+    subtype = ctype.split("/", 1)[1]
+    if subtype == "xml" or subtype.endswith("+xml"):
+        return True
     return not (ctype in PLAIN_TYPES or ctype.startswith(PLAIN_FAMILIES))
+
+
+def clean_type(ctype):
+    """取り寄せ先の Content-Type を、redpen が読めた形（type/subtype と、読めれば charset）に書き直す。
+
+    受け取った値をそのまま返すと、redpen とブラウザが別の型と読みうる（ブラウザはカンマで並んだ型の最後を使う）。
+    書き直した値を返して、それで sandbox を決めれば、判定する値とブラウザが受ける値が同じになる。
+    1 つの型として読めない値は application/octet-stream にする（sandbox を付ける側）。"""
+    main, _, params = ctype.partition(";")
+    main = main.strip(" \t").lower()
+    if "," in ctype or not TYPE_RE.fullmatch(main):
+        return "application/octet-stream"
+    m = re.search(r"(?:^|;)[ \t]*charset[ \t]*=[ \t]*[\"']?([\w-]+)[\"']?[ \t]*(?=;|$)", ";" + params, re.I | re.ASCII)
+    return main + (f"; charset={m.group(1)}" if m else "")
 
 
 def atomic_write_text(path, text):
@@ -121,12 +171,113 @@ def parse_blocks(text):
     return blocks
 
 
-def read_target(target):
+class Rendered:
+    """原稿をビルドして表示したページの URL。手元の http だけを受ける。"""
+
+    def __init__(self, url):
+        parts = urlsplit(url)
+        if parts.scheme != "http" or "@" in parts.netloc or parts.hostname not in LOOPBACK_HOSTS:
+            raise ValueError("--rendered は手元の http の URL（http://127.0.0.1:<port>/…、localhost、[::1]。"
+                             f"user@ のような利用者名は付けない）にしてください: {url}")
+        try:
+            parts.port
+        except ValueError:
+            raise ValueError(f"--rendered のポートが読めません: {url}") from None
+        self.origin = f"http://{parts.netloc}"
+        self.path = quote(parts.path or "/", safe=URL_SAFE)
+        self.page = self.path + (f"?{quote(parts.query, safe=URL_SAFE)}" if parts.query else "")
+
+    def fetch(self, path, accept=None):
+        """origin + path を取り寄せ、(状態の番号, Content-Type, 本体) を返す。取り寄せられないときは、理由つきの OSError。
+        accept はブラウザの要求の Accept。開発用サーバーには、同じ URL でも Accept で返すものを変えるものがある
+        （Vite は .css を、Accept が text/css なら CSS、そうでなければ JavaScript で返す）。
+
+        接続・応答・本体のどこで失敗しても、ここ 1 か所で URL つきの OSError に揃える
+        （HTTP でない応答、途中で切れた本体、時間切れ、URL に使えない字など）。"""
+        url = self.origin + path
+        try:
+            return self._fetch(Request(url, headers={"Accept": accept} if accept else {}))
+        except URLError as e:
+            raise OSError(f"{url} に届きません: {e.reason}") from None
+        except (OSError, http.client.HTTPException, ValueError) as e:
+            raise OSError(f"{url} から読めません: {e.__class__.__name__}: {e}") from None
+
+    @staticmethod
+    def _fetch(req):
+        url = req.full_url
+        try:
+            with _OPENER.open(req, timeout=FETCH_TIMEOUT) as r:
+                return r.status, r.headers.get("Content-Type", "application/octet-stream"), r.read()
+        except HTTPError as e:
+            # 200 以外。転送（3xx）もここに来る。従わずに、その番号を返す
+            if 300 <= e.code < 400:
+                where = e.headers.get("Location") if e.headers else None
+                body = (f"{url} は {where} へ転送されました。" if where else f"{url} は {e.code} を返しました。")
+                return e.code, "text/plain; charset=utf-8", (body + "redpen は転送に従いません").encode("utf-8")
+            ctype = e.headers.get("Content-Type", "text/plain") if e.headers else "text/plain"
+            return e.code, ctype, e.read() if e.fp else b""
+
+    def read_page(self):
+        status, ctype, body = self.fetch(self.page)
+        if status != 200:
+            raise OSError(f"{self.origin}{self.page} が {status} を返しました: {body[:200].decode('utf-8', 'replace')}")
+        # 文字コードは、ページを直接開いたときに返す型（clean_type）と同じ読み方で決める
+        charset = clean_type(ctype).partition("; charset=")[2]
+        try:
+            return body.decode(charset or "utf-8")
+        except (LookupError, UnicodeError) as e:
+            # 知らない文字コード名・読めない字・undefined のような名前だけの文字コード
+            raise OSError(f"{self.origin}{self.page} の本文を読めません: {e}") from None
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+# 環境の proxy（http_proxy など）を使わない。手元の取り寄せ先へ直接つなぐ
+_OPENER = build_opener(ProxyHandler({}), _NoRedirect)
+
+
+def insert_base(html, path):
+    """ページの中の相対パスを、ページの実際の基準で読ませる <base> を、<head> の中に入れる。
+
+    基準は、ページ自身の <base href>（あれば。相対ならページのパスで解決する）か、ページのパス（path）。
+    ブラウザは最初の <base href> を使うので、redpen の <base> を先に置けば、ページの基準と同じになる。
+    ページ自身の href が URL として読めない（urljoin かポートの読み取りが失敗する）か、data:・javascript: のように
+    http(s) でないときは、ページのパスを使う。<body> の中の <base> は見ない。
+    <!DOCTYPE> より前に置くと、ブラウザが互換モードで描く。HTML を字で読むので、<head> の中のスクリプトや
+    属性の値の中の字（<body、</head、<base href、<!doctype）には惑わされうる。"""
+    head_end = re.search(r"</head\s*>|<body[\s>]", html, re.I)
+    # href は属性の名前として読む（直前が空白・/・引用符、直後が空白・=・/・>）。値の無い href は、値が空と読む
+    own = re.search(r"""<base(?=[\s/>])[^>]*?(?<=[\s/"'])href(?=[\s=/>])(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?""",
+                    html[:head_end.start()] if head_end else html, re.I)
+    base = path
+    if own:
+        try:
+            joined = urljoin(path, html_unescape(next((g for g in own.groups() if g is not None), "")))
+            urlsplit(joined).port
+        except ValueError:
+            joined = None
+        if joined is not None and urlsplit(joined).scheme in ("", "http", "https"):
+            base = joined
+    m = re.search(r"<head(\s[^>]*)?>", html, re.I) or re.search(r"<!doctype[^>]*>", html, re.I)
+    at = m.end() if m else 0
+    return html[:at] + f'<base href="{html_escape(base)}">' + html[at:]
+
+
+def read_target(target, rendered=None):
+    if rendered is not None:
+        # 本文はビルドしたページ。ページの中の相対パスは、ページの URL のパスを基準に読む（base）
+        return {"mode": "html", "html": insert_base(rendered.read_page(), rendered.path)}
     # 先頭の BOM（U+FEFF）は読み飛ばす。残すと、1 行目の見出し・front matter・フェンスがそれと読まれない
     text = target.read_text(encoding="utf-8-sig")
     if is_html(target):
         return {"mode": "html", "html": text}
-    return {"mode": "md", "blocks": parse_blocks(text)}
+    doc = {"mode": "md", "blocks": parse_blocks(text)}
+    if target.suffix.lower() == ".mdx":
+        doc["mdx"] = True
+    return doc
 
 
 class ReviewFile:
@@ -229,7 +380,7 @@ def valid_target(value):
     return isinstance(value, str) and re.fullmatch(r"block:\d+|selector:.+", value, re.S) is not None
 
 
-def make_handler(target, review, port_box):
+def make_handler(target, review, port_box, rendered=None):
     root = target.parent
 
     class Handler(BaseHTTPRequestHandler):
@@ -307,9 +458,10 @@ def make_handler(target, review, port_box):
                 self.send_bytes(200, render_app(cfg).encode("utf-8"), "text/html; charset=utf-8")
             elif path == "/api/doc":
                 try:
-                    doc = read_target(target)
+                    doc = read_target(target, rendered)
                 except (OSError, UnicodeDecodeError) as e:
-                    self.send_json(500, {"error": f"{target.name} を読めません: {e}"})
+                    what = "ビルドしたページ" if rendered else target.name
+                    self.send_json(500, {"error": f"{what} を読めません: {e}"})
                     return
                 self.send_json(200, doc)
             elif path == "/api/comments":
@@ -322,10 +474,31 @@ def make_handler(target, review, port_box):
                 except OSError:
                     doc_m = 0
                 self.send_json(200, {"doc": str(doc_m), "comments": str(review.mtime())})
+            elif rendered:
+                self.serve_rendered()
             elif path.startswith("/api/"):
                 self.send_json(404, {"error": "not found"})
             else:
                 self.serve_sibling(path)
+
+        def serve_rendered(self):
+            # 要求の行のホスト（http://ほか/… の形）は使わず、パスと問い合わせだけを取り寄せる先に付ける
+            parts = urlsplit(self.path)
+            if not parts.path.startswith("/"):
+                # / で始まらないパスを origin に付けると、別のホストやポートを指す（0/x、@ほか/x）
+                self.send_json(400, {"error": "パスは / で始めてください"})
+                return
+            path = parts.path + (f"?{parts.query}" if parts.query else "")
+            try:
+                status, ctype, body = rendered.fetch(path, self.headers.get("Accept"))
+            except OSError as e:
+                self.send_json(502, {"error": str(e)})
+                return
+            # 隣のファイルと同じく、最上位で開いてもスクリプトを動かさない。朱の API を呼ばせないため。
+            # 型は redpen が読んだ値に書き直して返す（判定した値とブラウザが受ける値を同じにする）
+            ctype = clean_type(ctype)
+            extra = (("Content-Security-Policy", "sandbox"),) if needs_sandbox(ctype) else ()
+            self.send_bytes(502 if 300 <= status < 400 else status, body, ctype, extra=extra)
 
         def serve_sibling(self, path):
             # 対象ファイルのフォルダの中の通常ファイルだけを返す。.. や symlink で外へ出る
@@ -389,12 +562,12 @@ class Server(ThreadingHTTPServer):
     daemon_threads = True
 
 
-def create_server(target, port=0):
-    """(httpd, review) を返す。試験からも使う。"""
+def create_server(target, port=0, rendered=None):
+    """(httpd, review) を返す。試験からも使う。rendered は Rendered か None。"""
     review = ReviewFile(target)
     review.load()
     port_box = [port]
-    httpd = Server(("127.0.0.1", port), make_handler(target, review, port_box))
+    httpd = Server(("127.0.0.1", port), make_handler(target, review, port_box, rendered))
     port_box[0] = httpd.server_address[1]
     return httpd, review
 
@@ -424,9 +597,11 @@ def render_app(cfg):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="文書をブラウザで表示し、朱を付ける")
-    parser.add_argument("file", help="対象の Markdown か HTML のファイル")
+    parser.add_argument("file", help="対象の Markdown（MDX を含む）か HTML のファイル。--rendered のときは、そのページの原稿")
     parser.add_argument("--port", type=int, default=0, help="待ち受けるポート（省略時は空きを自動で選ぶ）")
     parser.add_argument("--static", action="store_true", help="サーバーを起動せず、対象ファイルの隣に HTML を書き出す")
+    parser.add_argument("--rendered", metavar="URL",
+                        help="原稿をビルドして表示したページの手元の URL。本文はこのページで表示し、朱は原稿の隣に保存する")
     args = parser.parse_args(argv)
 
     target = Path(args.file).expanduser().resolve()
@@ -445,6 +620,19 @@ def main(argv=None):
         print(f"redpen: ERROR: 朱のファイルを扱えません: {e}", file=sys.stderr)
         return 2
 
+    rendered = None
+    if args.rendered is not None:
+        if args.static:
+            print("redpen: ERROR: --rendered と --static は一緒に使えません（サーバーなしでは、ビルドしたページを取り寄せられません）",
+                  file=sys.stderr)
+            return 2
+        try:
+            rendered = Rendered(args.rendered)
+            rendered.read_page()
+        except (ValueError, OSError) as e:
+            print(f"redpen: ERROR: {e}", file=sys.stderr)
+            return 2
+
     if args.static:
         try:
             out = write_static(target)
@@ -455,7 +643,7 @@ def main(argv=None):
         return 0
 
     try:
-        httpd, _ = create_server(target, port=args.port)
+        httpd, _ = create_server(target, port=args.port, rendered=rendered)
     except OSError as e:
         print(f"redpen: ERROR: ポート {args.port} で待ち受けられません: {e}", file=sys.stderr)
         return 2
@@ -509,6 +697,9 @@ button[aria-pressed="true"] { background:var(--red-soft); border-color:var(--red
 .block pre { background:var(--bg); padding:8px 12px; border-radius:6px; overflow-x:auto; }
 .block code { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:13px; }
 .block blockquote { margin:0; padding-left:12px; border-left:3px solid var(--line); color:var(--muted); }
+.block .mdx { margin:6px 0; padding:6px 10px; border:1px dashed var(--muted); border-radius:6px; }
+.block .mdx .what { font-size:12px; color:var(--muted); }
+.block .mdx pre { margin:4px 0 0; }
 aside { min-width:0; }
 .composer, .item { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
 .composer { border-color:var(--red); }
@@ -674,6 +865,24 @@ aside { min-width:0; }
     if (h) { html += '<h' + h[1].length + '>' + inline(h[2]) + '</h' + h[1].length + '>'; lines = lines.slice(1); }
     return html + '<p>' + lines.map(inline).join('<br>') + '</p>';
   }
+  /* MDX のブロックのうち、ビルドしないと描けないもの。import・export のブロックは '' （出さない）、
+     部品・HTML のタグや式で始まるブロックは、何であるかと原文を見せる枠、ほかは null（Markdown として出す） */
+  function mdxBlock(src) {
+    var first = src.split('\n')[0].trim();
+    if (/^(import|export)\b/.test(first)) return '';
+    var m = /^<(\/?)([A-Za-z][\w.:-]*)/.exec(first), what;
+    if (m) what = /^[A-Z]/.test(m[2]) ? '部品 ' + m[1] + m[2] : 'HTML の <' + m[1] + m[2] + '>';
+    else if (/^[<{]/.test(first)) what = 'MDX の式';
+    else return null;
+    return '<div class="mdx"><div class="what">' + esc(what) +
+      '（ビルドしないと描けません。ビルドしたページの上で朱を付けるには、redpen を --rendered で開き直します）</div>' +
+      '<pre><code>' + esc(src) + '</code></pre></div>';
+  }
+  /* 1 つのブロックの HTML。MDX（mdx が真）では mdxBlock が描けないと判断したものを枠にし、'' は出さない */
+  function blockHtml(src, mdx) {
+    var x = mdx ? mdxBlock(src) : null;
+    return x === null ? renderMd(src) : x;
+  }
   function plain(src) { return src.replace(/[#>*`|\[\]!_-]/g, ' ').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim(); }
   /* ---- ここまで ---- */
 
@@ -697,9 +906,11 @@ aside { min-width:0; }
     var openAt = {};
     allComments().forEach(function (c) { if (c.status !== 'resolved') { var b = blockFor(c); if (b >= 0) openAt[b] = 1; } });
     state.doc.blocks.forEach(function (b) {
+      var html = blockHtml(b.src, state.doc.mdx);
+      if (html === '') return;
       var d = document.createElement('div');
       d.className = 'block' + (openAt[b.id] ? ' has' : '');
-      d.innerHTML = renderMd(b.src);
+      d.innerHTML = html;
       d.addEventListener('click', function (e) {
         if (!state.redOn) return;
         e.preventDefault();
