@@ -215,10 +215,10 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
 - 対象の元の事実・限定条件
 - 実行日時
 - コマンドと最小例
-- 版・OS・入力・設定
+- バージョン・OS・入力・設定
 - 終了コードと出力の抜粋
 
-記録した版と OS を省かず、「実行：〈コマンド〉（〈版〉、〈OS〉）」を事実リストの出典列にも書く。
+記録したバージョンと OS を省かず、「実行：〈コマンド〉（〈バージョン〉、〈OS〉）」を事実リストの出典列にも書く。
 文書根拠があれば文書名・位置と併記する。引用・出力は HTML として解釈させず、文字としてエスケープする。
 コードと出力には本 reference の <pre> のスクロール規則を使う。
 
@@ -508,7 +508,7 @@ HTML 生成（`SKILL.md` 手順 5）と保存・公開（手順 7）で使う。
   thead th { background: var(--sec-soft, var(--fill)); border-bottom: 2px solid var(--sec, var(--accent)); }
   li::marker { color: var(--sec, var(--accent)); }
   td code, th code { white-space: nowrap; }
-  /* 日付・版番号のようにハイフンや点でつないだ語を、ハイフンの後ろで折らない */
+  /* 日付・バージョン番号のようにハイフンや点でつないだ語を、ハイフンの後ろで折らない */
   .nobr { white-space: nowrap; }
   /* 狭い画面の 1 行に収まらない長い値（例の値・ハッシュ・トークン・長い URL）は、どの字の後ろでも折る */
   code.break { white-space: normal; overflow-wrap: anywhere; }
@@ -625,7 +625,7 @@ tech-write では `"IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, 
 - 見出し（`h1`〜`h3`）だけ：`font-feature-settings: "palt"`（詰め組）、`text-wrap: balance`（行の長さの釣り合い）、
   `word-break: auto-phrase`（文節での改行）。本文の `body`・`p`・`li` には掛けない。本文で詰めると字間が
   不ぞろいになり、`balance` は長い段落の行末をがたつかせる
-- 日付（`1873-01-01`）・版番号（`0.7.0`）・識別子・コマンドのオプション名（`--no-ff`）・ハイフンでつないだ
+- 日付（`1873-01-01`）・バージョン番号（`0.7.0`）・識別子・コマンドのオプション名（`--no-ff`）・ハイフンでつないだ
   用語（fast-forward）のように、ハイフンや点でつないだ一続きの語は、見出しでも
   本文でも `<span class="nobr">` で包む。ブラウザはハイフンの後ろを改行してよい位置として扱い、見出しの
   `text-wrap: balance` が行の長さをそろえようとして「1873-」と「01-01」に割ることがある。`line-break: strict`

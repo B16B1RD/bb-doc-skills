@@ -1150,8 +1150,8 @@ REFERENCE_FINDING_KEYS = [
 PROFILE_FINDING_KEYS = {None: FINDING_KEYS, "reference": REFERENCE_FINDING_KEYS}
 
 
-# 本版で新設したカテゴリ。baseline の欠落がこれだけなら、利用者が渡した JSON 自体は正しく、
-# 旧版の scan.py で作ったことだけが原因だと断定できる。
+# このバージョンで新設したカテゴリ。baseline の欠落がこれだけなら、利用者が渡した JSON 自体は正しく、
+# 古いバージョンの scan.py で作ったことだけが原因だと断定できる。
 BASELINE_ADDED_KEYS = frozenset({
     "principle_6_style_register", "symbol_notation", "llm_phrasing", "translated_metaphors",
     "touten_heavy_sentences",
