@@ -41,7 +41,7 @@ tech-write と共有する原則ファイルのチェックリストで監査す
 失敗・出力なし・行数やパスの不一致では「資料の読取未確認」と失敗した操作を報告し、そこで処理を終了する。
 失敗後は別の配備・キャッシュ・作業場所を検索せず、パスを組み立てて読み直さない。
 起動時に示された場所以外の資料で代用せず、以下の本文処理・監査・生成・納品へ進まない。
-停止の報告を補うための入力読取りや一覧取得も行わず、追加の道具を呼び出さずにその応答を終える。
+停止の報告を補うための入力読取りや一覧取得も行わず、追加のツールを呼び出さずにその応答を終える。
 
 ```bash
 python3 -c 'from pathlib import Path; import sys; a = sys.argv[1]; a or sys.exit("スキルの場所が空です"); p = Path(a).resolve(strict=True); print(p); print(p.parent); print(p.parent.parent / "memorable-doc-principles.md")' "${CLAUDE_SKILL_DIR}"
