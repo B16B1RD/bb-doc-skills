@@ -32,6 +32,16 @@ S4（ヘッジ）・S6（空虚な結び）と、弱シグナルの S10（通常
 「悪い例:」など）で始まる行は対象外。強シグナルではないので、強シグナルの基準
 （納品前セルフチェックの「強シグナルは 0」）と exit code は変わらない。
 
+読点の多い文（touten_heavy_sentences）は、style.md の S11 で、括弧の外の読点が 1 文に 3 つ以上ある
+日本語の文を拾う弱シグナルで、既定と --profile reference の両方に出す。記号表記と同じく 1 行ずつ見て、行の中を
+文末の記号で文に分ける（行はつながないので、文の途中で折り返した文は行ごとに数える）。引用や例示のラベルの行・
+コードスパン・コードフェンス・表・ATX の見出しは数えない（字下げのコードと Setext の見出しは数える）。
+match は文から行頭の項目の記号（「・」「1）」「①〜⑳」「[ ]」の 4 種）と読点と空白を除いた先頭 120 字で、
+--baseline では読点を減らす途中の文と、この 4 種の番号を振り直した項目が同じ指摘として残る（「（1）」などほかの番号は
+鍵に残る。同じ文が 2 回あれば 1 つの鍵の件数で比べる）。count は読点の数、line は文のある行、text は文の先頭 120 字の抜粋（表示用で、
+長さは検査で固定しない）。短い主題の後の読点と、読点のない長い文は拾わない。
+記号表記と同じく弱シグナルだけなので、強シグナルの基準と exit code は変わらない。
+
 コードフェンスは、開きと同じ文字が開き以上の長さで並び、その後ろに半角の空白かタブしか無い行でだけ閉じる
 （長いフェンスの中の短い並びや別の文字の並び、後ろに文字が続く並び、4 字以上字下げした並びでは閉じない）。
 行の区切りは Python の `splitlines()` に従う。Markdown では行を分けない字（改ページ、垂直タブ、U+0085、
@@ -870,6 +880,71 @@ def symbol_hits(lines):
     return found
 
 
+# --- 読点の多い文（S11）--------------------------------------------------------
+# tech-write/references/style.md の S11 で、1 文に読点が 3 つ以上ある文を拾う弱シグナル。
+# 記号表記と同じく 1 行ずつ見て、行の中を文末の記号（。！？!?）で文に分ける。行はつながない
+# （文の途中で行を折り返した文は、行ごとに数える）。括弧の中の読点は数えない（括弧の中は別の構造なので、
+# 外の切れ目の重さに入らない）。半角の [ ] は Markdown のリンクの文字を囲むので括弧に数えず、
+# リンクの文字は本文として数える。リンクの宛先は ( ) の中なので数えず、URL は除く（URL の中の ( ) の対は 1 段まで URL に含める）。
+# どの読点が小さな切れ目かは文脈で決まるので、強シグナルにしない。
+# match は、文から行頭の項目の記号（「・」・番号と閉じ丸括弧（全角・半角）・丸数字「①〜⑳」・チェックボックス「[ ]」の 4 種だけ）と、
+# URL を除いた後に括弧を含まないリンクの宛先と、読点と空白を除いた先頭 120 字。--baseline は「カテゴリ + match」で
+# 同じ指摘かを決めるので、読点を減らす途中の文と、この 4 種の番号を振り直した項目と、http の URL か括弧の無い宛先だけを
+# 変えた文は同じ指摘のまま残り（宛先に括弧を含む相対リンクは鍵に残る）、
+# 別の文が増えたときだけ new になる。同じ文が 2 回あれば 1 つの鍵にまとまり、件数で比べる。読点の数は count に置く。
+# 先頭の YAML の frontmatter は、記号表記や語句のカテゴリと同じく地の文として数える（SKILL.md の description も拾う。段落の長さは frontmatter を除く）。
+
+TOUTEN_LIMIT = 3
+TOUTEN_OPEN = "「『（(【［〔"
+TOUTEN_CLOSE = "」』）)】］〕"
+TOUTEN_END = "。！？!?"
+TOUTEN_KEY_DROP = re.compile(r"[、\s]")
+# 鍵から落とす行頭の項目の記号（中点・番号と閉じ丸括弧・丸数字・チェックボックス）。番号を振り直しても同じ指摘のまま残す
+TOUTEN_KEY_ITEM = re.compile(r"^(?:・|[0-9０-９]+[）)]|[①-⑳]|\[[ xX]\])\s*")
+# 読点の検査で除く URL。空白と丸括弧を除く ASCII の字だけを URL とみなし、全角の字（読点・句点・括弧・かな漢字）の
+# 手前で止める（記号表記の SYMBOL_URL は空白まで続く）。半角の ) でも止まるので、URL を囲む ( ) は閉じたまま残る。
+# URL の直後の半角の ! と ? は URL の一部とみなし、文の区切りにしない。地の文の < … > はタグとして除く（比べの式も消える）。
+# URL の中の ( ) の対（Wikipedia の Foo_(bar) など）は 1 段まで URL に含める。これはリンクの宛先を
+# SYMBOL_LINK_TARGET（中に括弧の無い宛先）で鍵から除けるようにするためで、括弧の深さは対を含めなくても変わらない
+TOUTEN_URL = re.compile(r"https?://(?:[!-'*-~]|\([!-'*-~]*\))+|<[^<>\n]+>")
+
+
+def touten_hits(lines):
+    """読点が TOUTEN_LIMIT 個以上ある日本語の文。line は文のある行、match は文から読点と空白を除いた先頭 120 字、
+    count は読点の数、text は文の先頭 120 字。"""
+    found = []
+    for i, line in prose_lines(lines):
+        # 画像の ![ の ! は文末の記号でないので外す。リンクの宛先は ( ) の中にあるので数えない
+        # （URL は ) の手前で止まるので、宛先の ( ) は閉じたまま残る）
+        probe = TOUTEN_URL.sub(" ", line.replace("![", "["))
+        if not probe.strip() or is_quotish(probe):
+            continue
+        item = LIST_ITEM.match(probe)
+        chars, depth, count = [], 0, 0
+        for ch in probe[item.end() if item else 0:].strip() + "\n":
+            if ch == "\n" or (ch in TOUTEN_END and depth == 0):
+                if ch != "\n":
+                    chars.append(ch)
+                sentence = "".join(chars).strip()
+                if count >= TOUTEN_LIMIT and SYMBOL_JA_LINE.search(sentence):
+                    found.append({
+                        "line": i, "match": TOUTEN_KEY_DROP.sub("", SYMBOL_LINK_TARGET.sub("]", TOUTEN_KEY_ITEM.sub("", sentence)))[:120], "count": count,
+                        "text": sentence[:120],
+                        "in_quote_context": False,
+                        "severity": "weak",
+                    })
+                chars, depth, count = [], 0, 0
+                continue
+            chars.append(ch)
+            if ch in TOUTEN_OPEN:
+                depth += 1
+            elif ch in TOUTEN_CLOSE:
+                depth = max(0, depth - 1)
+            elif ch == "、" and depth == 0:
+                count += 1
+    return found
+
+
 LIST_ITEM = re.compile(r"^\s*(?:[-*+]|[0-9]+[.)])\s+")
 LABEL_TAIL = re.compile(r"\s*(?:[:：]|$)")
 LABEL_PERIOD_INSIDE = re.compile(r"。(?:\*\*|__)$")
@@ -1004,6 +1079,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
             "reference_closings": hits_of(REFERENCE_CLOSINGS, "reference_closings"),
             "principle_7_bold_emphasis": bold_hits,
             "symbol_notation": symbol_hits(lines),
+            "touten_heavy_sentences": touten_hits(lines),
             "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
             "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
             "stats": stats,
@@ -1033,6 +1109,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
             RECALL_MARKERS, "principle_8_recall_markers"
         ),
         "symbol_notation": symbol_hits(lines),
+        "touten_heavy_sentences": touten_hits(lines),
         "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
         "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
         "stats": stats,
@@ -1053,6 +1130,7 @@ FINDING_KEYS = [
     "principle_7_bold_emphasis",
     "principle_8_recall_markers",
     "symbol_notation",
+    "touten_heavy_sentences",
     "llm_phrasing",
     "translated_metaphors",
 ]
@@ -1064,6 +1142,7 @@ REFERENCE_FINDING_KEYS = [
     "reference_closings",
     "principle_7_bold_emphasis",
     "symbol_notation",
+    "touten_heavy_sentences",
     "llm_phrasing",
     "translated_metaphors",
 ]
@@ -1075,6 +1154,7 @@ PROFILE_FINDING_KEYS = {None: FINDING_KEYS, "reference": REFERENCE_FINDING_KEYS}
 # 旧版の scan.py で作ったことだけが原因だと断定できる。
 BASELINE_ADDED_KEYS = frozenset({
     "principle_6_style_register", "symbol_notation", "llm_phrasing", "translated_metaphors",
+    "touten_heavy_sentences",
 })
 
 
@@ -1279,6 +1359,15 @@ def _append_symbol_detail(out, hits):
     out.append("")
 
 
+def _append_touten_detail(out, hits):
+    if not hits:
+        return
+    out.append(f"--- 読点の多い文 ({_count_label(hits)}) ---")
+    for h in hits:
+        out.append(f"  L{h['line']}: [弱] 読点 {h['count']} 個  |  {h['text']}")
+    out.append("")
+
+
 WEAK_PHRASE_LABELS = [
     ("llm_phrasing", "LLM っぽい言い回し"),
     ("translated_metaphors", "翻訳調の比喩"),
@@ -1305,7 +1394,7 @@ def summarize(result):
     out = []
     out.append("=== 定着レビュー 機械スキャン ===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用悪例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・通常段落の長さ。違反断定でなく文脈判断)")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・通常段落の長さ。違反断定でなく文脈判断)")
     out.append("")
     out.append(f"太字などの強調      : {len(r['principle_7_bold_emphasis'])} 箇所  (原則 7: 2 箇所以上で違反疑い)")
     out.append(f"前置きフィラー      : {_count_label(r['principle_1_fillers'])}    (原則 1)")
@@ -1317,6 +1406,7 @@ def summarize(result):
     out.append(f"生成の問いシグナル  : {'有' if has_generation else '無'}     (原則 5)")
     out.append(f"想起テストシグナル  : {'有' if has_recall else '無'}     (原則 8)")
     out.append(f"記号表記            : {_count_label(r['symbol_notation'])}    (記号の字形。S9)")
+    out.append(f"読点の多い文        : {_count_label(r['touten_heavy_sentences'])}    (1 文に読点 3 つ以上。S11)")
     for key, label in WEAK_PHRASE_LABELS:
         out.append(f"{label}：{_count_label(r[key])}（暫定の弱シグナル）")
     s = r["stats"]
@@ -1343,6 +1433,7 @@ def summarize(result):
             out.append(f"  L{h['line']}: {w}{h['match']}  |  {h['text']}{q}")
         out.append("")
     _append_symbol_detail(out, r["symbol_notation"])
+    _append_touten_detail(out, r["touten_heavy_sentences"])
     _append_weak_phrase_detail(out, r)
     out.append(summarize_paragraphs(r))
     return "\n".join(out)
@@ -1353,7 +1444,7 @@ def summarize_reference(result):
     out = []
     out.append("=== 参照文書 機械スキャン（--profile reference）===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・通常段落の長さ。違反断定でなく文脈判断。")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・通常段落の長さ。違反断定でなく文脈判断。")
     out.append(" 手順の「〜してください」と箇条書き先頭のラベルの太字は数えない)")
     out.append("")
     sections = [
@@ -1368,6 +1459,7 @@ def summarize_reference(result):
     s = r["stats"]
     out.append(f"数字の密度: {s['numeric_per_1000_chars']} 個/1000字 (数字トークン {s['numeric_tokens']})")
     out.append(f"記号表記: {_count_label(r['symbol_notation'])}    (S9)")
+    out.append(f"読点の多い文: {_count_label(r['touten_heavy_sentences'])}    (S11)")
     for key, label in WEAK_PHRASE_LABELS:
         out.append(f"{label}：{_count_label(r[key])}（暫定の弱シグナル）")
     out.append(f"ダッシュの密度: {s['dash_per_1000_chars']} 個/1000字 (ダッシュ {s['dash_count']}。地の文のみ)")
@@ -1383,6 +1475,7 @@ def summarize_reference(result):
             out.append(f"  L{h['line']}: {w}{h['match']}  |  {h['text']}{q}")
         out.append("")
     _append_symbol_detail(out, r["symbol_notation"])
+    _append_touten_detail(out, r["touten_heavy_sentences"])
     _append_weak_phrase_detail(out, r)
     out.append(summarize_paragraphs(r))
     return "\n".join(out)
