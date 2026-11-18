@@ -1,6 +1,6 @@
 # HTML 出力の共有 reference
 
-文書系スキルが「HTML で」と頼まれて納品するときに使う。骨格・図の決め方・再生できるフロー図・アクセシビリティ・スクリーンショット確認・目視チェックリストを 1 か所で引けるようにして、スキルごとに書き方がずれないようにする。
+文書系スキルが「HTML で」と頼まれて納品するときに使う。骨格・図の決め方・動く図・アクセシビリティ・スクリーンショット確認・目視チェックリストを 1 か所で引けるようにして、スキルごとに書き方がずれないようにする。
 
 各スキルは `<このスキルのディレクトリ>/../retention-write/references/html-output.md` で読む。
 このディレクトリは呼出し元が解決したスキルの実体を指す。兄弟の参照も、呼出し元から受け取った
@@ -71,22 +71,32 @@ HTML では本文の出典を上付きの番号にする。本文の中に「（
 
 ## 図の置き場所と強弱
 
-文字だけが続くページでは、読者は文字の量の多さに読み始める気を失う。図は、文を読み比べなくても構造が見える箇所に置く。大きさで強弱を付けて、読者の目がどこから入ればよいかを示す。結論は文で書き、図は文を補う。図にしか書かれていない結論を作らない。
+図は、文章だけでは分かりにくい箇所に置く。込み入った関係は、文章より図の方が理解しやすいからである。図の枚数を増やすことと、図を動かすことは目的にしない。大きさで強弱を付けて、読者の目がどこから入ればよいかを示す。結論は文で書き、図は文を補う。図にしか書かれていない結論を作らない。
 
 ### 図を置く箇所
 
-節ごとに、文が次のどれかを説明しているかを見る。説明していれば、その節に図を置く。
+図を置くのは、文章だけでは分かりにくい節である。表・箇条書き・短い文で足りる節には置かない。節ごとに、原稿のその節（表・箇条書き・文）だけを読んで、関係が読み取れるかを確かめる。
 
-| 文が説明していること | 図の例 |
+次のどれかに当たる節は、読み取れる節である。図を置かない。
+
+- 同じ内容を比べる表が、その節にある（表が既に見せている）
+- 順に並べた箇条書きで足りる（日付と出来事の並び、分岐も戻りもない手順）
+- 1〜2 文で言い切れる
+
+文を 2 つ以上読み比べないと関係が見えない節に、図を置く（例：同時に進む 2 つのものの関係、値と上限の関係、分岐や戻りのある流れ、3 つ以上の部品のつながり）。
+
+図を置くと決めた節では、見せたい関係に合う形を選ぶ。次は形の例で、図を置くかの判定には使わない（時間の経過を説明する節でも、日付と出来事の箇条書きで足りれば図を置かない）。
+
+| 見せたい関係 | 図の例 |
 |------|---------|
 | 構造・分類（いくつかの型や部品と、その関係） | 中心と周りの型を並べた地図、入れ子の円 |
-| 流れ・手順・因果 | 矢印でつないだ箱、再生できるフロー図 |
+| 流れ・手順・因果 | 矢印でつないだ箱 |
 | 段階・水準の上がり方 | 階段、目盛りの上の点 |
 | 比較・対比（前と後、悪い例と良い例） | 左右に並べた 2 つの箱と、間の矢印 |
 | 前提と、その上に乗るもの | 土台の上に載る箱 |
 | 時間の経過・期間 | 時間の軸と、その上の出来事 |
 
-どれも説明していない節（単独の事実、数値 1 つ、引用、注意書きだけの節）には、無理に図を置かない。隣り合う 2 つの節が同じ構造を説明しているときは、詳しく説明している方の節に 1 枚だけ置く。同じ構造の図を 2 枚描かない。図の枚数に上限は設けない。上の表に当たる箇所がある限り、何枚あってもよい。逆に、当たる箇所がない文書に図を足して枚数を増やさない。
+隣り合う 2 つの節が同じ構造を説明しているときは、詳しく説明している方の節に 1 枚だけ置く。同じ構造の図を 2 枚描かない。図の枚数は目的にしない。図を置く節が 1 つも無い文書は、図なしで納品する。
 
 図に書くのは本文に書いてある事実と語だけにする。図のために事実を足さない。キャプションには図が何を見せるかと、図の読み方（矢印の向き、色が何を表すか）を書いてよい。特定の論文・記事を紹介する文書（tech-write の原典の紹介）で、原典に無い図を描いたときは、キャプションに「図は原典にはありません」と書く。技術トピックの解説のように複数の資料から書く文書では、この一文は要らない。原典の図表は転載しない。
 
@@ -169,47 +179,72 @@ HTML では本文の出典を上付きの番号にする。本文の中に「（
 
 図は inline SVG で描く。`viewBox`・`role="img"`・`aria-label`・色の引き方は、page-skeleton.md の「inline SVG の規則」に従う。
 
-## 再生できるフロー図
+## 動く図
 
-流れを説明する図（手順・処理の順序・時間の経過）は、ステップ送りか再生ボタンで 1 ステップずつ見られる形にする。静止した 1 枚だと、読者は矢印をたどって順序を自分で組み立てることになる。
+動く図（再生とステップ送りの付いた図）は、動作を説明する節で、段階が進むと図の中身が変わり、その変化が説明の中身であるときにだけ使う。変化とは、次のようなものである。
 
-作り方は次の 3 点である。
+- 値や状態が変わる様子（同じものの値が増減する、同じものの状態が移る）
+- 同時に進む 2 つのもののずれ（2 本の帯を時間の軸にそろえて並べ、段階ごとに伸ばす）
+- データの受け渡し（データが送り手から受け手へ移り、受け取った側の状態が変わる）
 
-- 図のステップ（SVG の `<g>`）と、同じステップの説明文（`<li>`）に、同じ番号の `data-step` を付ける
-- 操作ボタン（前へ・次へ・再生）は JS が `<figcaption>` の前に挿入する。JS が動かない環境に、押せないボタンを出さない
-- 既定は全ステップを表示した状態にする。JS が動いたときだけ、ステップ送りの状態に切り替わる
+分岐も戻りもない一方向の流れ（箱を矢印で一列につないだ図、時系列の図）は静止した図にし、再生の仕掛けを付けない。箱や点を順に強調するだけの再生は、矢印が既に示している順序を繰り返すだけで、読者に新しく分かることがない。
+
+作り方は次の 4 点である。
+
+- 段階ごとに図の中身を変える。その段階から現れて残る図形に `data-from`、その段階のときだけ出す図形に `data-on`、段階ごとに変わる値に `data-levels`、段階ごとに変わる文字に `data-texts`、今の時点を示す線に `data-xs` を付ける
+- 段階の数と番号は、本文の手順の番号と同じにする。手順の箇条は本文に残し、図の後ろに置く。`data-status` には各段階で起きることを、本文の手順にある語で短く書く。本文に無い事実を足さない。`data-status` の文は JS が文字として入れるので `nobr` で包めず、`h2c->send_window` のようなハイフンを含むコードの名前はハイフンの後ろで割れる。コードの名前は書かず、本文の手順にある言葉（「送信枠」など）で書く
+- 操作ボタン（再生・前へ・次へ）は JS が `<figcaption>` の前に挿入する。JS が動かない環境に、押せないボタンを出さない
+- 既定は最後の段階の表示にする（`data-texts` の要素の中身と、`data-levels`・`data-xs` の要素の `style` に、最後の段階の値を書いておく）。最後の段階で出ない図形（`data-on` に最後の番号を含まないもの）には、マークアップの時点で `class="is-off"` を付けておく。JS は図形を隠すだけなので、付けておかないと、JS が動かない環境で全段階の図形が重なって出る。JS が動いたときだけ、ステップ送りの状態に切り替わる
 
 ```html
-<figure class="flow" data-flow>
-  <svg viewBox="0 0 320 180" width="320" role="img" aria-label="{図の要旨}">
-    <g data-step="1"><!-- 1 つめの図形 --></g>
-    <g data-step="2"><!-- 2 つめの図形 --></g>
+<figure class="main anim" data-anim data-last="3" data-status="{段階 1 で起きること}|{段階 2 で起きること}|{段階 3 で起きること}">
+  <svg viewBox="0 0 640 240" width="640" role="img" aria-label="{図の要旨}">
+    <g data-from="1"><!-- 段階 1 から現れて、後の段階でも残る図形 --></g>
+    <g data-from="2"><!-- 段階 2 から現れる図形 --></g>
+    <g data-on="2 3"><!-- 段階 2 と 3 のときだけ出す図形 --></g>
+    <g data-on="1" class="is-off"><!-- 段階 1 のときだけ出す図形。最後の段階で出ないので is-off を付けておく --></g>
+    <rect class="gauge" data-levels=".30 .80 .95" x="60" y="30" width="72" height="180" style="transform: scaleY(.95)"/><!-- 段階ごとに高さが変わる値 -->
+    <text x="220" y="60" data-texts="{段階 1 の文字}|{段階 2 の文字}|{段階 3 の文字}">{段階 3 の文字}</text>
+    <line class="playhead" data-xs="60 280 520" x1="0" y1="30" x2="0" y2="200" style="transform: translateX(520px)"/><!-- 今の時点を示す線 -->
   </svg>
-  <figcaption>
-    <ol>
-      <li data-step="1">{1 つめの説明}</li>
-      <li data-step="2">{2 つめの説明}</li>
-    </ol>
-  </figcaption>
+  <figcaption>図 1：{何が変わる様子を見せる図か}。番号は下の手順の番号です。</figcaption>
 </figure>
+<ol>
+  <li>{段階 1 の手順（本文の箇条のまま）}</li>
+  <li>{段階 2 の手順}</li>
+  <li>{段階 3 の手順}</li>
+</ol>
 <style>
-  .flow.is-stepped g[data-step] { opacity: .35; }
-  .flow.is-stepped g[data-step].is-on { opacity: 1; }
-  .flow.is-stepped li[data-step]:not(.is-on) { color: var(--muted); }
-  .flow-bar { display: flex; gap: .5rem; align-items: center; }
+  .anim .is-off { opacity: 0; }
+  .anim .playhead { stroke: var(--accent); stroke-width: 2; }
+  .anim .gauge { transform-box: fill-box; transform-origin: 50% 100%; }
+  .anim-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: 1rem; }
+  .anim-status { flex-basis: 100%; margin: .2em 0 0; }
   @media (prefers-reduced-motion: no-preference) {
-    .flow.is-stepped g[data-step] { transition: opacity .3s; }
+    .anim [data-from], .anim [data-on] { transition: opacity .4s; }
+    .anim .gauge, .anim .playhead { transition: transform .7s ease-in-out; }
   }
 </style>
 <script>
-document.querySelectorAll('[data-flow]').forEach(function (fig) {
-  var steps = Array.prototype.slice.call(fig.querySelectorAll('[data-step]'));
-  var last = Math.max.apply(null, steps.map(function (s) { return Number(s.dataset.step); }));
+document.querySelectorAll('[data-anim]').forEach(function (fig) {
+  var last = Number(fig.dataset.last);
+  var labels = (fig.dataset.status || '').split('|');
   var now = last, timer = null;
   var bar = document.createElement('div');
-  bar.className = 'flow-bar';
-  var status = document.createElement('span');
+  bar.className = 'anim-bar';
+  var status = document.createElement('p');
+  status.className = 'anim-status';
   status.setAttribute('aria-live', 'polite');
+  function pick(list, n) { return list[Math.min(n, list.length) - 1]; }
+  function show(n) {
+    now = Math.min(Math.max(n, 1), last);
+    fig.querySelectorAll('[data-from]').forEach(function (e) { e.classList.toggle('is-off', Number(e.dataset.from) > now); });
+    fig.querySelectorAll('[data-on]').forEach(function (e) { e.classList.toggle('is-off', e.dataset.on.split(' ').map(Number).indexOf(now) < 0); });
+    fig.querySelectorAll('[data-levels]').forEach(function (e) { e.style.transform = 'scaleY(' + pick(e.dataset.levels.split(' '), now) + ')'; });
+    fig.querySelectorAll('[data-texts]').forEach(function (e) { e.textContent = pick(e.dataset.texts.split('|'), now); });
+    fig.querySelectorAll('[data-xs]').forEach(function (e) { e.style.transform = 'translateX(' + pick(e.dataset.xs.split(' '), now) + 'px)'; });
+    status.textContent = 'ステップ ' + now + ' / ' + last + '：' + labels[now - 1];
+  }
   function button(text, onClick) {
     var b = document.createElement('button');
     b.type = 'button';
@@ -218,37 +253,25 @@ document.querySelectorAll('[data-flow]').forEach(function (fig) {
     bar.appendChild(b);
     return b;
   }
-  function show(n) {
-    now = Math.min(Math.max(n, 1), last);
-    steps.forEach(function (s) { s.classList.toggle('is-on', Number(s.dataset.step) <= now); });
-    status.textContent = 'ステップ ' + now + ' / ' + last;
-  }
   function stop() { clearInterval(timer); timer = null; play.textContent = '再生'; }
-  button('前へ', function () { stop(); show(now - 1); });
-  button('次へ', function () { stop(); show(now + 1); });
   var play = button('再生', function () {
     if (timer) { stop(); return; }
     show(1);
     play.textContent = '一時停止';
-    timer = setInterval(function () { if (now >= last) { stop(); } else { show(now + 1); } }, 1500);
+    timer = setInterval(function () { if (now >= last) { stop(); } else { show(now + 1); } }, 2200);
   });
+  button('前へ', function () { stop(); show(now - 1); });
+  button('次へ', function () { stop(); show(now + 1); });
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { play.hidden = true; }
   bar.appendChild(status);
   fig.insertBefore(bar, fig.querySelector('figcaption'));
-  fig.classList.add('is-stepped');
+  fig.classList.add('is-anim');
   show(last);
 });
 </script>
 ```
 
-再生できるフロー図も、主役図か補助図のどちらかとして置く（`<figure class="main flow" data-flow>` か `<figure class="aside flow" data-flow>`）。`<figcaption>` の `<ol>` には本文にあった手順の箇条をそのまま移す。本文に同じ箇条を残して二重に持たない。図の番号と見出し（「図 3：…」）は、`<ol>` の前の `<p>` に書く。補助図のキャプションの淡い色と小さい字を手順の箇条に掛けないよう、次の CSS を足す。
-
-```css
-.flow > figcaption { text-align: left; font-size: 1em; color: var(--fg); }
-.flow.is-stepped li[data-step]:not(.is-on) { color: var(--muted); }
-```
-
-文書の中で流れを主に説明する図（手順の節の主役図など）は、この再生できる形にする。分岐や例外を 1 か所だけ見せる図は、静止した図のままでよい。
+動く図も、主役図か補助図のどちらかとして置く（`<figure class="main anim" data-anim>` か `<figure class="aside anim" data-anim>`）。
 
 上の例は読みやすさのために図と並べて書いている。実際のページでは CSS は文書の先頭にある `<style>` へ統合し、`<script>` は対象の `<figure>` より後ろに置く。`<script>` を図より前に置くと、読み込み時に図が見つからず、操作ボタンが出ない。
 
@@ -257,7 +280,7 @@ page-skeleton.md はページの JS を「テーマの切り替え」のボタ�
 ## アクセシビリティ
 
 - アニメーションと自動再生は `prefers-reduced-motion` で止める。`@media (prefers-reduced-motion: no-preference)` の中でだけ動きを有効にし、`reduce` の読者には遷移も自動再生も出さない（上の例はこの形）。ステップ送りのボタンは動きを伴わないので残す
-- JS なしでも本文が読めることを要件にする。本文と図を JS で組み立てない。JS が担うのは操作ボタンの追加とステップの強調だけで、止まっても全ステップが読める状態が既定になる
+- JS なしでも本文が読めることを要件にする。本文と図を JS で組み立てない。JS が担うのは操作ボタンの追加と段階の切り替えだけで、JS が動かないときは最後の段階の図が出る。各段階の説明は本文の手順にあるので、図が動かなくても読める
 - 図には `role="img"` と、その図の要旨を書いた `aria-label` を付ける
 - 色だけで区別しない。凡例や線種、ラベルの文言でも区別できるようにする
 - 操作はボタン要素で作り、キーボードで押せるようにする
@@ -281,7 +304,7 @@ HTML を納品する前に、実際に描画した画面を見る。ソースを
 
 ### 手順
 
-1. 保存した HTML を、広い幅（1280px 前後）と狭い幅（390px 前後）の 2 つで全面撮る。ダーク用の色定義（`prefers-color-scheme: dark` など）を持つ文書は、ライトとダークの両方を撮る。ダークは chrome-devtools の `emulate` の `colorScheme: dark` で配色を切り替えて撮る。切り替えられないときは、ダーク側のトークンの定義をソースで確認し、納品報告に「ダーク未確認」と書く。テーマの切り替えのボタンは、OS をダークにした状態で「ライト」を押した画面も撮り、表の字が本文と同じ濃さで出ることを見る。閲覧環境のテーマとの組み合わせも、根要素に `data-theme="light"` を付けて確かめる（chrome-devtools の `evaluate_script` などで付ける。claude.ai の Artifact で閲覧者がライトを選んだ状態と同じ印である）。OS がダークでも白地になり、「自動」を押しても白地のままで、「ダーク」を押すと暗くなることを見る。再生できるフロー図は既定の表示（最終ステップ）に加えて、「前へ」で最初のステップに戻した状態も撮る。ソースで代えるときは、最初のステップの図形と説明文だけが強調される CSS になっているかを読む
+1. 保存した HTML を、広い幅（1280px 前後）と狭い幅（390px 前後）の 2 つで全面撮る。ダーク用の色定義（`prefers-color-scheme: dark` など）を持つ文書は、ライトとダークの両方を撮る。ダークは chrome-devtools の `emulate` の `colorScheme: dark` で配色を切り替えて撮る。切り替えられないときは、ダーク側のトークンの定義をソースで確認し、納品報告に「ダーク未確認」と書く。テーマの切り替えのボタンは、OS をダークにした状態で「ライト」を押した画面も撮り、表の字が本文と同じ濃さで出ることを見る。閲覧環境のテーマとの組み合わせも、根要素に `data-theme="light"` を付けて確かめる（chrome-devtools の `evaluate_script` などで付ける。claude.ai の Artifact で閲覧者がライトを選んだ状態と同じ印である）。OS がダークでも白地になり、「自動」を押しても白地のままで、「ダーク」を押すと暗くなることを見る。動く図は、広い幅ですべての段階を 1 つずつ撮る（狭い幅は、上の全面の撮影で写る最後の段階でよい）。段階ごとに文字と値と線の位置が変わるので、途中の段階だけラベルがはみ出したり、今の時点を示す線が字に重なったりすることがある。撮るときは動きを止める設定にする（chrome-devtools なら `emulate` の `prefersReducedMotion: reduce`、ヘッドレスの Chrome なら `--force-prefers-reduced-motion`）。動きを止めずに撮ると遷移の途中が写り、値が変わっていないように見える。加えて、`<script>` を除いた写しを撮り、最後の段階と同じ絵になることを見る。ソースで代えるときは、段階ごとの文字（`data-texts`）がどれも箱と図の幅に収まるか、最後の段階で出ない図形に `is-off` が付いているか、`data-texts` の要素の中身と `data-levels`・`data-xs` の要素の `style` が最後の段階の値になっているかを読む
 2. 撮った画像を、次節の目視チェックリストと突き合わせる。幅のそろいは目で見るだけにせず、描画したページで本文の列の各要素の左端と右端を測る（page-skeleton.md の「レイアウト」）
 3. 崩れを見つけたら直して撮り直す。直せなかった崩れは納品報告に 1 件ずつ並べる
 
@@ -299,7 +322,8 @@ HTML を納品する前に、実際に描画した画面を見る。ソースを
 - [ ] 交差した線がない（矢印や接続線が、関係のない図形や他の線をまたいでいない）
 - [ ] 狭い幅（390px 前後）で、ページ本体が横スクロールしない（表とコードは容器の中だけがスクロールする）。2 列の表は横スクロールせず、セルの中で折り返す
 - [ ] 冒頭の帯・図・表・見出し・段落の左端と右端が、上から下まで同じ線にそろっている（本文の外へ張り出す要素も、本文の横に並ぶ要素もない）
-- [ ] 構造・流れ・段階・比較・前提・時間の経過を文で説明している節に、図がある。図の無いそうした節があれば、置かない理由を言える
+- [ ] 図は、文章だけでは分かりにくい節にだけある。表・箇条書き・短い文で足りる節に図が無い
+- [ ] 文を 2 つ以上読み比べないと関係が見えない節に、図がある
 - [ ] 図に、本文に無い事実を足していない。原典に無い図にはキャプションでそう書いてある
 - [ ] 主役図がひと目で見つかり、補助図が主役図より目立っていない
 - [ ] 補助図は 1 枚ごとに、担う役を「この図は〇〇を見せる」と一文で言える
@@ -308,7 +332,9 @@ HTML を納品する前に、実際に描画した画面を見る。ソースを
 - [ ] ダーク用の色定義がある文書は、ダークテーマで線・文字・背景が溶け合っていない
 - [ ] テーマの切り替えのボタンが右上にあり、「自動」「ライト」「ダーク」のどれを押しても、表の字が本文と同じ色と大きさで出る
 - [ ] 根要素に `data-theme` を付けた状態で「自動」を押すと、その印のテーマで表示される（ボタンが `data-theme` を書き換えていない）
-- [ ] 再生できるフロー図は最初のステップと最後のステップのどちらでも読める
+- [ ] 動く図は、段階ごとに図の中身（値・状態・位置）が変わる。箱や点を順に強調するだけの再生が無い
+- [ ] 分岐も戻りもない一方向の流れ図と時系列の図に、再生が付いていない
+- [ ] 動く図は、どの段階でも読める。`<script>` を除いた写しで、最後の段階と同じ絵が出る
 - [ ] AI 生成の目印が無い。次のどれも出ていないことを確かめる
   - 見出しの上の小ラベル（見出しの前に置いた、大文字や色付きの小さな分類語）
   - セクションごとのフェードイン（スクロールに合わせて節が浮き出る動き）
@@ -393,5 +419,7 @@ HTML を納品するときは、確認の結果を報告に添える。
 | スクショで崩れを見つけた | 直して撮り直す。直せなかった崩れは納品報告に並べる |
 | page-skeleton.md を読めない | 参照確認の失敗を報告する。縮退出力する場合は上の最小骨格で代える |
 | 補助図の役を一文で言えない、または本文に無い事実が図に入っている | 役を一文で言える形に描き直す。描き直せないなら削る。本文に無い事実は図から外す |
-| 構造・流れ・段階・比較などを説明する節に図が無い | 図にする。図にしない理由を一文で言えるときだけ、図を置かずに残す |
-| 流れの図が JS なしで読めない | 既定を全ステップ表示に戻し、ボタンの挿入を JS 側へ移す |
+| 表・箇条書き・短い文で足りる節に図がある | 図を外す |
+| 文を 2 つ以上読み比べないと関係が見えない節に図が無い | 図にする |
+| 一方向の流れ図や時系列の図に再生が付いている、または再生しても順に強調されるだけ | 再生を外して静止した図にする。変化を見せたいなら、段階ごとに中身が変わる図に描き直す |
+| 動く図が JS なしで読めない | 既定を最後の段階の表示に戻し、ボタンの挿入を JS 側へ移す |
