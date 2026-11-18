@@ -42,6 +42,15 @@ match は文から行頭の項目の記号（「・」「1）」「①〜⑳」�
 長さは検査で固定しない）。短い主題の後の読点と、読点のない長い文は拾わない。
 記号表記と同じく弱シグナルだけなので、強シグナルの基準と exit code は変わらない。
 
+語の分野（domain_terms）は、style.md の S7 の表にある語（正本・版・鍵・署名・道具・枝・試験）を、単独の名詞の形で
+拾う弱シグナルで、既定と --profile reference の両方に出す。単独の名詞の形は、前がひらがな・「『【（・半角の ( と [・中点・全角のスラッシュ・句点・読点・全角コロンか、行頭（見出し・箇条書き・タスクリストの印・
+引用・`#` のコメントの記号の後を含む）か、表のセルの頭で、
+後ろが漢字・カタカナでないもの。太字の `**` は外して見る。前が空白の語（第 2 版・Go 版・SSH 鍵・CI 試験）と、開発版・最新版・公開鍵・電子署名・部署名・負荷試験・試験運用は拾わない。
+本来の分野の用法（契約書の正本、大工の道具）も拾うので、行を読んで S7 で判断する。表に無い語と、表の語でも
+前が空白の形・複合語（版番号・試験結果）などは拾わない（目視で拾う）。`#` 以外のコメントの記号（`//`・`--`）の後の行頭の語と、
+`__` で囲んだ太字の語も拾わない。
+コードフェンスの中は数えない。match は語、line は行番号。弱シグナルだけなので、強シグナルの基準と exit code は変わらない。
+
 コードフェンスは、開きと同じ文字が開き以上の長さで並び、その後ろに半角の空白かタブしか無い行でだけ閉じる
 （長いフェンスの中の短い並びや別の文字の並び、後ろに文字が続く並び、4 字以上字下げした並びでは閉じない）。
 行の区切りは Python の `splitlines()` に従う。Markdown では行を分けない字（改ページ、垂直タブ、U+0085、
@@ -998,6 +1007,35 @@ def is_quotish(line: str) -> bool:
     return bool(re.match(r"[-*+]?\s*(素の文体|Before|悪い例|例|適用後|After)\s*[:：]", stripped))
 
 
+# style.md の S7 の表の「語」の列と同じ語。表を変えたら合わせる（dev/tests/test_scan_domain_terms.py が照合する）
+DOMAIN_TERMS = ["正本", "版", "鍵", "署名", "道具", "枝", "試験"]
+DOMAIN_TERM_PATTERNS = [
+    (w, re.compile(r"(?:^|(?<=[ぁ-ゖ「『【（(\[・／。、：|]))" + w + r"(?![一-龥ァ-ヺ])")) for w in DOMAIN_TERMS
+]
+# 行頭の見出し・箇条書き・タスクリストの印・引用・コメントの記号と空白。外した後の先頭を行頭として扱う
+DOMAIN_TERM_LEAD = re.compile(r"^[ \t]*(?:(?:#{1,6}|>|[-*+]|[0-9]{1,9}[.)]|\[[ xX]\])[ \t]+)*")
+# 表のセルの頭の空白。外した後の先頭を、前が | の位置として扱う
+DOMAIN_TERM_CELL = re.compile(r"\|[ \t]+")
+
+
+def domain_term_hits(lines, fences):
+    """S7 の表の語を、単独の名詞の形で拾う。すべて弱シグナル。"""
+    found = []
+    for i, line in enumerate(lines, 1):
+        if fences[i - 1]:
+            continue
+        probe = DOMAIN_TERM_CELL.sub("|", DOMAIN_TERM_LEAD.sub("", line.replace("**", "")))
+        for word, pattern in DOMAIN_TERM_PATTERNS:
+            for _ in pattern.finditer(probe):
+                found.append({
+                    "line": i, "match": word,
+                    "text": line.strip()[:120],
+                    "in_quote_context": is_quotish(line),
+                    "severity": "weak",
+                })
+    return found
+
+
 def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=None):
     reference = profile == "reference"
     weak_by_category = _REFERENCE_WEAK_BY_CATEGORY if reference else _WEAK_BY_CATEGORY
@@ -1080,6 +1118,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
             "principle_7_bold_emphasis": bold_hits,
             "symbol_notation": symbol_hits(lines),
             "touten_heavy_sentences": touten_hits(lines),
+            "domain_terms": domain_term_hits(lines, fences),
             "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
             "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
             "stats": stats,
@@ -1110,6 +1149,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
         ),
         "symbol_notation": symbol_hits(lines),
         "touten_heavy_sentences": touten_hits(lines),
+        "domain_terms": domain_term_hits(lines, fences),
         "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
         "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
         "stats": stats,
@@ -1131,6 +1171,7 @@ FINDING_KEYS = [
     "principle_8_recall_markers",
     "symbol_notation",
     "touten_heavy_sentences",
+    "domain_terms",
     "llm_phrasing",
     "translated_metaphors",
 ]
@@ -1143,6 +1184,7 @@ REFERENCE_FINDING_KEYS = [
     "principle_7_bold_emphasis",
     "symbol_notation",
     "touten_heavy_sentences",
+    "domain_terms",
     "llm_phrasing",
     "translated_metaphors",
 ]
@@ -1154,7 +1196,7 @@ PROFILE_FINDING_KEYS = {None: FINDING_KEYS, "reference": REFERENCE_FINDING_KEYS}
 # 古いバージョンの scan.py で作ったことだけが原因だと断定できる。
 BASELINE_ADDED_KEYS = frozenset({
     "principle_6_style_register", "symbol_notation", "llm_phrasing", "translated_metaphors",
-    "touten_heavy_sentences",
+    "touten_heavy_sentences", "domain_terms",
 })
 
 
@@ -1359,6 +1401,16 @@ def _append_symbol_detail(out, hits):
     out.append("")
 
 
+def _append_domain_detail(out, hits):
+    if not hits:
+        return
+    out.append(f"--- 語の分野 ({_count_label(hits)}) ---")
+    for h in hits:
+        q = "  [引用文脈?]" if h["in_quote_context"] else ""
+        out.append(f"  L{h['line']}: [弱] {h['match']}  |  {h['text']}{q}")
+    out.append("")
+
+
 def _append_touten_detail(out, hits):
     if not hits:
         return
@@ -1394,7 +1446,7 @@ def summarize(result):
     out = []
     out.append("=== 定着レビュー 機械スキャン ===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用悪例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・通常段落の長さ。違反断定でなく文脈判断)")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・語の分野・通常段落の長さ。違反断定でなく文脈判断)")
     out.append("")
     out.append(f"太字などの強調      : {len(r['principle_7_bold_emphasis'])} 箇所  (原則 7: 2 箇所以上で違反疑い)")
     out.append(f"前置きフィラー      : {_count_label(r['principle_1_fillers'])}    (原則 1)")
@@ -1407,6 +1459,7 @@ def summarize(result):
     out.append(f"想起テストシグナル  : {'有' if has_recall else '無'}     (原則 8)")
     out.append(f"記号表記            : {_count_label(r['symbol_notation'])}    (記号の字形。S9)")
     out.append(f"読点の多い文        : {_count_label(r['touten_heavy_sentences'])}    (1 文に読点 3 つ以上。S11)")
+    out.append(f"語の分野            : {_count_label(r['domain_terms'])}    (S7 の表の語。表に無い語は目視)")
     for key, label in WEAK_PHRASE_LABELS:
         out.append(f"{label}：{_count_label(r[key])}（暫定の弱シグナル）")
     s = r["stats"]
@@ -1434,6 +1487,7 @@ def summarize(result):
         out.append("")
     _append_symbol_detail(out, r["symbol_notation"])
     _append_touten_detail(out, r["touten_heavy_sentences"])
+    _append_domain_detail(out, r["domain_terms"])
     _append_weak_phrase_detail(out, r)
     out.append(summarize_paragraphs(r))
     return "\n".join(out)
@@ -1444,7 +1498,7 @@ def summarize_reference(result):
     out = []
     out.append("=== 参照文書 機械スキャン（--profile reference）===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・通常段落の長さ。違反断定でなく文脈判断。")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・語の分野・通常段落の長さ。違反断定でなく文脈判断。")
     out.append(" 手順の「〜してください」と箇条書き先頭のラベルの太字は数えない)")
     out.append("")
     sections = [
@@ -1460,6 +1514,7 @@ def summarize_reference(result):
     out.append(f"数字の密度: {s['numeric_per_1000_chars']} 個/1000字 (数字トークン {s['numeric_tokens']})")
     out.append(f"記号表記: {_count_label(r['symbol_notation'])}    (S9)")
     out.append(f"読点の多い文: {_count_label(r['touten_heavy_sentences'])}    (S11)")
+    out.append(f"語の分野: {_count_label(r['domain_terms'])}    (S7 の表の語。表に無い語は目視)")
     for key, label in WEAK_PHRASE_LABELS:
         out.append(f"{label}：{_count_label(r[key])}（暫定の弱シグナル）")
     out.append(f"ダッシュの密度: {s['dash_per_1000_chars']} 個/1000字 (ダッシュ {s['dash_count']}。地の文のみ)")
@@ -1476,6 +1531,7 @@ def summarize_reference(result):
         out.append("")
     _append_symbol_detail(out, r["symbol_notation"])
     _append_touten_detail(out, r["touten_heavy_sentences"])
+    _append_domain_detail(out, r["domain_terms"])
     _append_weak_phrase_detail(out, r)
     out.append(summarize_paragraphs(r))
     return "\n".join(out)

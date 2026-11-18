@@ -87,10 +87,10 @@ PR 本文・Issue 本文・Issue/PR コメントで、文を読み比べない�
 
 ## 投稿済みの図を取り出す
 
-投稿済みの本文の図は `https://github.com/user-attachments/assets/<ID>` の URL になっている。公開リポジトリなら、そのまま取得できる。private のリポジトリでは認証なしの取得は 404 になるので、gh の認証で取得する。
+投稿済みの本文の図は `https://github.com/user-attachments/assets/<ID>` の URL になっている。公開リポジトリなら、そのまま取得できる。private のリポジトリでは認証なしの取得は 404 になるので、gh の認証で取得する。取得した図は作業用の一時フォルダ（`mktemp -d` で作ったフォルダなど）に保存し、利用者のリポジトリに置かない。次の例は保存したパスを出力するので、終了コードが 0 なら、そのパスを控えて Read に使う。終了コードが 0 でなければ（404 は 22。エラー文が出る）、取得できなかった図として扱う。
 
 ```bash
-curl -sL -H "Authorization: token $(gh auth token)" -o fig.svg 'https://github.com/user-attachments/assets/<ID>'
+curl -fsSL -H "Authorization: token $(gh auth token)" -o "$(mktemp -d)/fig-1.svg" -w '%{filename_effective}\n' 'https://github.com/user-attachments/assets/<ID>'
 ```
 
 取得したファイルが SVG（`<svg` で始まる）でなければ、PNG などの画像として扱う。
