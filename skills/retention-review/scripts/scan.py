@@ -18,8 +18,8 @@
 tech-write/references/style.md の S1（前置きフィラー）・S2（万能語）・S3（太字）・
 S4（ヘッジ）・S6（空虚な結び）と、弱シグナルの S10（通常段落の長さ）・S9（記号。下の記号表記）で、語表は style.md の日本語の語に合わせてある。
 これに、既定と共通の LLM っぽい言い回し・翻訳調の比喩の弱シグナルを加える。
-手順の「〜してください」を指示レジスタとして数えないなど、判断文書向けの原則 2・4・5・8 と
-文体レジスタは出力に含めない。太字は箇条書き先頭のラベル（`- **名前**: 説明`）を除いて数える。
+手順の「〜してください」を指示レジスターとして数えないなど、判断文書向けの原則 2・4・5・8 と
+文体レジスターは出力に含めない。太字は箇条書き先頭のラベル（`- **名前**: 説明`）を除いて数える。
 既存カテゴリの語彙・太字・統計欄の集計と exit code は変えない。
 
 記号表記（symbol_notation）は、style.md の S9 の字形からはずれた記号を拾う弱シグナルで、
@@ -51,6 +51,47 @@ match は文から行頭の項目の記号（「・」「1）」「①〜⑳」�
 `__` で囲んだ太字の語も拾わない。
 コードフェンスの中は数えない。match は語、line は行番号。弱シグナルだけなので、強シグナルの基準と exit code は変わらない。
 
+日本語の表記（style.md の S12）の 5 つ、長音の抜け（long_vowel_omissions）・URL の直後の日本語（url_followed_by_ja）・
+英数字と日本語の間（ja_alnum_spacing）・全角文字どうしの間（fullwidth_spaces）・数えるときの漢数字（kanji_numeral_counters）も、
+既定と --profile reference の両方に出す弱シグナルである。どれもコードフェンス・
+コードスパンの中と、『』（作品名。S12 で書き換えないもの）の中は見ない。見出し・表・箇条書き・先頭の YAML の frontmatter
+（SKILL.md の description）は見る（このスキル群の本文は、見出しも表もスペースありで書いているため）。字下げ（4 つの空白）の
+コードブロックも見る。リンクの宛先として除くのは `[文字](宛先)` の形だけで、参照定義（`[x]: ./サーバ.md`）の宛先は見る。
+長音の抜けは、S12 の表の語（LONG_VOWEL_WORDS）を末尾の長音なしで書いた所で、match は長音なしの形（サーバ）。
+後ろにカタカナが続く形（サーバプロセス）も拾い、続くと別の語になる形（ユーザビリティ・レジスタンス・サーバント・
+アカウンタビリティ・セレクタブル・コンテナライズ・カレンダリング）と -y の語（メモリ）は拾わない。URL・リンクの宛先・HTML のタグの中も見ない。
+引用・例示らしい行は、語の分野と同じく in_quote_context を真にする。
+URL の直後の日本語は、http:// か https:// の URL（空白・< >・ASCII でない字の手前まで）に、空白なしで漢字・かなが続く所で、
+match は URL。< > で囲んだ URL・リンクの文字と宛先・画像の中の URL と、全角の句読点・閉じ括弧が続く所・行末の URL・
+/ で終わる URL に漢字・カタカナが続く形（https://example.com/日本語）は、日本語のパスとみなして拾わない
+（/ の後がひらがななら、助詞が続いた形として拾う。https://www.jtf.jp/を参照）。半角の `)`・`"`・`*`・`|`・`,` は
+URL の字として取り込むので、その後ろに日本語が続けば拾う（`(https://example.com/docs)を参照` の match は `https://example.com/docs)`）。
+英数字と日本語の間は、半角の英数字かコードスパンと、漢字・ひらがな・カタカナ（長音記号を含む）が隣り合う境目を、
+間が半角スペース 1 つ（あり）と、間に何も無い（なし）に分けて数え、stats の ja_alnum_spaced・ja_alnum_unspaced に置く。
+全角の記号（句読点・括弧・中点）との境目と、間が 2 つ以上の空白・タブ・全角の空白の所は数えない。リンクと、`**`・`__` の
+太字は表示される文字で見る（`[README](x.md)を` はなし）。`*…*`・`_…_` の斜体と `~~…~~` は印を外さないので、`*README*を` の
+境目は数えない。`>` で始まる引用行・URL・< > の中・リンクと画像の宛先・画像は数えない。
+行をまたぐ境目（行末の日本語と次の行頭の英字）も数えない。明細は行ごとに 1 件で、match は「スペースなし」か
+「スペースあり」、count はその行の境目の数。スペースなしの行は必ず出し、なしがありより多い文書では、少ないほうの
+スペースありの行も出す。--baseline は、ほかのカテゴリと同じく「カテゴリ + match」の件数（行の数）で比べる。
+テキスト出力の明細は、行の本文を出さずに行番号だけを並べる。
+全角文字どうしの間は、全角文字の間に半角スペースがちょうど 1 つある所で、match はスペースとその前後（前後はそれぞれ、
+隣が漢字・かなならその並びを 6 字まで、記号ならその 1 字。「初年度 約」「。 付いた朱は」）。全角文字は、漢字・ひらがな・
+カタカナ（長音記号・々・〆を含む）と、全角の句読点・中点・コロン・セミコロン・括弧（NOTATION_FW）で、スペースの
+後ろには全角の！？も入れる。全角の！？の後のスペースは、文末の！？に別の文が続く形（JTF 3.2.1・3.2.2）なので数えない。
+リンクは表示される文字で見て、HTML のタグ（名前が英字で始まる < … >）は外して見る（`くわしくは <a href="#f1">事実 1</a>`
+は「くわしくは 事実」に当たる）。太字の印 `**`・`__` は外さないので、印の外側のスペースは、太字を成り立たせるため
+（`**削除は取り消せません。** 実行する`）かを見分けずに数えない（`これは **重要** です` も数えない）。`>` で始まる
+引用行・行頭の「・」と番号の印（1）・１）・（1）。箇条書きの印の後に続くときも）の後・英数字や半角の記号（表の `|` など）との間・2 つ以上の空白・タブ・全角の空白・
+行をまたぐ所と、URL・< > で囲んだ URL・HTML のタグの中・リンクと画像の宛先・画像は数えない。人の名前の姓と名の間
+（山田 太郎）のような正当なスペースにも当たるので、行を読んで判断する。in_quote_context は長音の抜けと同じ。
+数えるときの漢数字は、漢数字 1 字（一〜九）の直後に「つ」が続く所で、match はその 2 字（二つ。三つ目も三つで拾う）。
+S12 と JTF 2.2.2 は、数えられるものを算用数字で書く（1 つ・3 つのボタン）。数を置き換えられない慣用句は、手で並べた
+KANJI_NUMERAL_IDIOMS（一つひとつ・一つ一つ・何一つ・今一つ・いま一つ・二つ返事・瓜二つ・真っ二つ・三つ巴・四つ角・五つ星・
+七つ道具）だけを拾わない。ほかの慣用句（身一つ など）にも当たるので、行を読んで残す。ほかの助数詞（個・回・件・人）は拾わない。
+前に 〇・一〜九・十・百・千・万 が続く形（十二つ）も、2 字以上の漢数字の一部として拾わない。見ない所と in_quote_context は長音の抜けと同じ。
+5 つとも弱シグナルだけなので、強シグナルの基準と exit code は変わらない。
+
 コードフェンスは、開きと同じ文字が開き以上の長さで並び、その後ろに半角の空白かタブしか無い行でだけ閉じる
 （長いフェンスの中の短い並びや別の文字の並び、後ろに文字が続く並び、4 字以上字下げした並びでは閉じない）。
 行の区切りは Python の `splitlines()` に従う。Markdown では行を分けない字（改ページ、垂直タブ、U+0085、
@@ -74,10 +115,10 @@ new（今回のみ）/ persisting（両方）に仕分けて出力に加える�
 同梱の references/scan-guidance.md が文脈判断の基準を示す。出力ではともに [弱] と表示する。
 違反の断定ではなく文脈判断に回すこと。
 
-principle_6_style_register は詠嘆・指示レジスタの検出結果で、敬体・常体のどちらの
-文体で書かれているかは問わない（既定は です・ます調だが、である調で書かれた文書を
+principle_6_style_register は詠嘆・指示レジスターの検出結果で、敬体・常体のどちらの
+文体で書かれているかは問わない（既定は「です・ます」調だが、「である」調で書かれた文書を
 文体だけを理由に違反にはしない）。規定の本体は retention-write の
-references/skeleton.md「文体レジスタ」節の 2 軸表。
+references/skeleton.md「文体レジスター」節の 2 軸表。
 """
 
 import argparse
@@ -87,10 +128,10 @@ import sys
 import unicodedata
 
 # --- 検出パターン ------------------------------------------------------------
-# 各リストは「素の AI 文体の癖」対照表（memorable-doc-principles.md 付録)を
+# 各リストは「素の AI 文体の癖」対照表（memorable-doc-principles.md 付録）を
 # 機械可読に落としたもの。網羅ではなく高頻度パターンに絞る。
 
-FILLERS = [  # 原則 1 賭け金の宣言 に反する前置きフィラー
+FILLERS = [  # 原則 1「賭け金の宣言」に反する前置きフィラー
     "本ドキュメントでは", "本書では", "本稿では", "本資料では",
     "について説明します", "についてまとめます", "について解説します",
     "を紹介します", "一助となれば", "参考になれば",
@@ -99,17 +140,17 @@ FILLERS = [  # 原則 1 賭け金の宣言 に反する前置きフィラー
     "よろしくお願いいたします", "よろしくお願いします",
 ]
 
-STRUCTURE_DECL = re.compile(  # 原則 2 因果の物語 に反する構造宣言
+STRUCTURE_DECL = re.compile(  # 原則 2「因果の物語」に反する構造宣言
     r"(以下|次)の?\s*[0-9０-９一二三四五六七八九十]+\s*つの(観点|ポイント|側面|項目|柱|軸|カテゴリ)"
 )
 
-BUZZWORDS = [  # 原則 3 具体で書く に反する万能語
+BUZZWORDS = [  # 原則 3「具体で書く」に反する万能語
     "最適化", "効率化", "簡素化", "高度化", "抜本的",
     "適切な", "適切に", "柔軟な", "柔軟に", "様々な", "さまざまな",
     "総合的に", "積極的に", "シナジー", "ソリューション",
 ]
 
-DEAD_METAPHORS = [  # 原則 4 スキーマフック に反する死んだ比喩
+DEAD_METAPHORS = [  # 原則 4「スキーマフック」に反する死んだ比喩
     "車の両輪", "銀の弾丸", "諸刃の剣", "両刃の剣", "一石二鳥",
     "追い風", "向かい風", "一丁目一番地",
 ]
@@ -125,14 +166,14 @@ TRANSLATED_METAPHORS = [
 ]
 
 INSTRUCTION_MARKERS = [  # 読者へ指示して予測させる形。原則 5 のシグナルであり、同時に
-    # 文体レジスタ違反でもある（STYLE_REGISTER_MARKERS と併せて principle_6_style_register に
-    # 直接合流させる。語尾側だけに任せると「手を止めて数える。」のように語尾がレジスタ語で
+    # 文体レジスター違反でもある（STYLE_REGISTER_MARKERS と併せて principle_6_style_register に
+    # 直接合流させる。語尾側だけに任せると「手を止めて数える。」のように語尾がレジスター語で
     # ない指示形が原則 5 にしか出ず、二段計上が語尾に依存して崩れる）
     "予想して", "予測して", "考えてみて", "思い浮かべて", "数えてほしい",
     "手を止めて", "自問して",
 ]
 
-NEUTRAL_QUESTION_MARKERS = [  # 中立レジスタの問い形（文体レジスタ規則が推奨する形）
+NEUTRAL_QUESTION_MARKERS = [  # 中立レジスターの問い形（文体レジスター規則が推奨する形）
     "ここで一問", "だろうか。", "でしょうか。",
 ]
 # 既知の限界: 「でしょうか。」「だろうか。」は敬体・常体の疑問文全般に当たるため、修辞疑問や
@@ -151,7 +192,7 @@ GENERATION_HEDGE_MASKS = [
     "のではないだろうか", "ではないだろうか",
 ]
 
-HEDGES = [  # 原則 6 断定 に反するヘッジ・両論併記・事なかれ表現
+HEDGES = [  # 原則 6「断定」に反するヘッジ・両論併記・事なかれ表現
     "可能性があります", "可能性がある", "傾向があります", "傾向がある",
     "場合があります", "と考えられます", "と思われます", "一概に",
     "期待できます", "が望ましい", "検討していく", "検討を進め",
@@ -159,17 +200,17 @@ HEDGES = [  # 原則 6 断定 に反するヘッジ・両論併記・事なか�
     "ればと思います", "ではないかと考え", "ではないでしょうか", "ではないだろうか",
 ]
 
-STYLE_REGISTER_MARKERS = [  # 原則 6 補足 詠嘆・指示レジスタ（敬体・常体の両方を検出する）
+STYLE_REGISTER_MARKERS = [  # 原則 6 補足：詠嘆・指示レジスター（敬体・常体の両方を検出する）
     # 敬体（です・ます調）の詠嘆・指示形
     "ましょう", "てください", "ですよね", "ますよね", "それだけです。",
     # 常体（である調）の詠嘆・指示形
     "からだ。", "それだけだ。", "てほしい",
 ]
-# 敬体の「〜からです。」は入れない。常体の「〜からだ。」が詠嘆になるのは である調の中立形が
+# 敬体の「〜からです。」は入れない。常体の「〜からだ。」が詠嘆になるのは「である」調の中立形が
 # 「〜ためである。」だからで、敬体では「理由は X だからです。」が中立の標準形にあたる。
 # 2 軸表の敬体行も同じ理由で当該語形を挙げていない。
 
-RECALL_MARKERS = [  # 原則 8 想起テスト の存在シグナル
+RECALL_MARKERS = [  # 原則 8「想起テスト」の存在シグナル
     "読了チェック", "想起テスト", "1 週間後", "一週間後", "1週間後",
     "確認問題", "クイズ", "答えられるか",
 ]
@@ -196,7 +237,7 @@ HEDGES_WEAK_SIGNAL = [
     "可能性があります", "可能性がある", "場合があります",
 ]
 
-# 文体レジスタの弱シグナルは持たない。文脈の例外は references/skeleton.md の規則で判断する。
+# 文体レジスターの弱シグナルは持たない。文脈の例外は references/skeleton.md の規則で判断する。
 # 「からだ。」の名詞終止への誤検出は、本ファイル冒頭が全体の前提として掲げる
 # 「シグナルであって判定ではない」に委ねる。
 
@@ -569,7 +610,7 @@ def paragraph_measure(text):
     などの複雑な inline、tab 字下げ（リスト記号後も含む）、入れ子 container の fence、
     container 内部の表・山括弧表記、閉じない frontmatter/HTML 等は
     文書全体を未計測とする。
-    日本語を含む本文だけ。字数は非空白 codepoint、文数相当は 。！？!? run と
+    日本語を含む本文だけ。字数は非空白 codepoint、文数相当は「。！？!?」の run と
     残りの近似。HTML の flatten 等の構造消失は caller が明示する必要がある。
     """
     lines = text.splitlines()
@@ -1036,6 +1077,228 @@ def domain_term_hits(lines, fences):
     return found
 
 
+# --- 日本語の表記（S12）--------------------------------------------------------
+# tech-write/references/style.md の S12 のうち、守られにくい 5 つを拾う弱シグナル。
+# どれもコードフェンス・コードスパンの中と、『』（作品名）の中は見ない。
+
+# 漢字・ひらがな・カタカナ（長音記号「ー」と「々」を含む）。中点・句読点・括弧などの記号は含めない
+NOTATION_JA = "ぁ-ゖゝゞァ-ヺー-ヾ㐀-䶿一-鿿豈-﫿々〆"
+# 全角の句読点・中点・コロン・セミコロン・括弧
+NOTATION_FW_MARKS = "、。，．・：；「」『』（）［］｛｝【】〔〕〈〉《》"
+NOTATION_TITLE = re.compile(r"『[^』\n]*』")
+# リンクと画像の宛先。宛先の中の ( ) の対は 1 段まで含める（Wikipedia の Foo_(bar) など）
+NOTATION_TARGET = r"\((?:[^()\n]|\([^()\n]*\))*\)"
+NOTATION_LINK_TARGET = re.compile(r"\]" + NOTATION_TARGET)
+NOTATION_IMAGE = re.compile(r"!\[[^\]\n]*\]" + NOTATION_TARGET)
+NOTATION_LINK = re.compile(r"\[([^\]\n]*)\](?:" + NOTATION_TARGET + r"|\[[^\]\n]*\])")
+NOTATION_TAG = re.compile(r"<[^<>\n]+>")  # HTML のタグと、< > で囲んだ URL
+# URL の直後の日本語で見る URL。空白・< > と ASCII でない字の手前まで。GitHub は日本語の字までリンク先に含めるので、
+# その手前で切って続く字を見る
+NOTATION_URL = re.compile(r"https?://[!-;=?-~]+")
+# 長音・スペースの検出で除く URL。空白と、全角の句読点・括弧・！？の手前までをひとまとまりにする（日本語のパスも
+# URL の中なので見ない。https://ja.wikipedia.org/wiki/サーバ）。URL にスペースなしで続いた漢字・かなも一緒に除かれるが、
+# その所は URL の直後の日本語が拾う
+NOTATION_URL_WHOLE = re.compile(rf"https?://[^\s{NOTATION_FW_MARKS}！？]+")
+
+# style.md の S12 の長音の表の語と同じ語。表を変えたら合わせる（dev/tests/test_scan_notation.py が照合する）
+LONG_VOWEL_WORDS = [
+    "ユーザー", "サーバー", "ブラウザー", "フォルダー", "コンピューター", "パラメーター", "ヘッダー", "フッター",
+    "プリンター", "ドライバー", "メンバー", "レジスター", "カウンター", "コンテナー",
+    "エディター", "セレクター",
+    "カレンダー",
+]
+# 長音を除いた形の後ろに続くと、別の語になるカタカナ（ユーザビリティ、レジスタンス、サーバント、
+# アカウンタビリティ、セレクタブル、コンテナライズ、カレンダリング）。ほかのカタカナが続く形（サーバプロセス）は長音の抜けとして拾う
+LONG_VOWEL_OTHER_WORDS = ("ビリティ", "ブル", "ンス", "ント", "ライズ", "リング")
+LONG_VOWEL_PATTERNS = [
+    (w[:-1], re.compile(re.escape(w[:-1]) + r"(?!ー|" + "|".join(LONG_VOWEL_OTHER_WORDS) + ")"))
+    for w in LONG_VOWEL_WORDS
+]
+
+
+def notation_lines(lines, fences):
+    """表記の検査が見る (行番号, 行) の列。コードフェンスの行を除く。見出し・表・箇条書き・frontmatter は含める。"""
+    for i, line in enumerate(lines, 1):
+        if not fences[i - 1]:
+            yield i, line
+
+
+def long_vowel_hits(lines, fences):
+    """LONG_VOWEL_WORDS の語を、末尾の長音なしで書いた所。match は長音なしの形、すべて弱シグナル。"""
+    found = []
+    for i, line in notation_lines(lines, fences):
+        probe = NOTATION_TITLE.sub("『』", PROSE_INLINE_CODE.sub(" ", line))
+        probe = NOTATION_URL_WHOLE.sub(" ", NOTATION_TAG.sub(" ", NOTATION_LINK_TARGET.sub("]", probe)))
+        for stem, pattern in LONG_VOWEL_PATTERNS:
+            for _ in pattern.finditer(probe):
+                found.append({
+                    "line": i, "match": stem,
+                    "text": line.strip()[:120],
+                    "in_quote_context": is_quotish(line),
+                    "severity": "weak",
+                })
+    return found
+
+
+# 数えるときの漢数字。漢数字 1 字に「つ」が続く所（二つ・三つ目）。S12 と JTF 2.2.2 は、数えられるものを算用数字で書く。
+# 数を置き換えられない慣用句は、手で並べたこの一覧だけを拾わない（一覧に無い慣用句（身一つ など）には当たる）
+KANJI_NUMERAL_IDIOMS = ("一つひとつ", "一つ一つ", "何一つ", "今一つ", "いま一つ", "二つ返事", "瓜二つ", "真っ二つ",
+                        "三つ巴", "四つ角", "五つ星", "七つ道具")
+KANJI_NUMERAL_IDIOM = re.compile("|".join(map(re.escape, KANJI_NUMERAL_IDIOMS)))
+# 前に 〇・一〜九・十・百・千・万 が続く形（十二つ・二十三つ）は、2 字以上の漢数字の一部として拾わない
+KANJI_NUMERAL_COUNTER = re.compile("(?<![〇一二三四五六七八九十百千万])[一二三四五六七八九]つ")
+
+
+def kanji_numeral_hits(lines, fences):
+    """漢数字 1 字（一〜九）の直後に「つ」が続く所。match はその 2 字（二つ）、すべて弱シグナル。
+    見ない所は長音の抜けと同じ（コードスパン・『』・URL・リンクの宛先・HTML のタグの中）で、KANJI_NUMERAL_IDIOMS の
+    慣用句も拾わない。ほかの助数詞（個・回・件・人）と、前に 〇・一〜九・十・百・千・万 が続く形（十二つ）は拾わない。"""
+    found = []
+    for i, line in notation_lines(lines, fences):
+        probe = NOTATION_TITLE.sub("『』", PROSE_INLINE_CODE.sub(" ", line))
+        probe = NOTATION_URL_WHOLE.sub(" ", NOTATION_TAG.sub(" ", NOTATION_LINK_TARGET.sub("]", probe)))
+        probe = KANJI_NUMERAL_IDIOM.sub(lambda m: "\x03" * len(m.group(0)), probe)
+        for m in KANJI_NUMERAL_COUNTER.finditer(probe):
+            found.append({
+                "line": i, "match": m.group(0),
+                "text": line.strip()[:120],
+                "in_quote_context": is_quotish(line),
+                "severity": "weak",
+            })
+    return found
+
+
+def url_ja_hits(lines, fences):
+    """http:// か https:// の URL の直後に、スペースなしで漢字・かなが続く所。match は URL、すべて弱シグナル。
+    < > で囲んだ URL・リンクの中の URL（文字と宛先）・コードスパンの中は見ない。URL が / で終わり、すぐ後に
+    漢字・カタカナが続く形（https://example.com/日本語）は、日本語のパスとみなして拾わない。/ の後がひらがななら
+    助詞が続いた形（https://www.jtf.jp/を参照）なので拾う。"""
+    found = []
+    after = re.compile(f"[{NOTATION_JA}]")
+    hiragana = re.compile("[ぁ-ゖゝゞ]")
+    for i, line in notation_lines(lines, fences):
+        probe = PROSE_INLINE_CODE.sub("\x02", line)
+        # 画像（![…](…)）も、リンクの形として一緒に除かれる
+        probe = NOTATION_TAG.sub("\x02", NOTATION_LINK.sub("\x02", probe))
+        for m in NOTATION_URL.finditer(probe):
+            path = m.group(0).endswith("/") and not hiragana.match(probe, m.end())
+            if after.match(probe, m.end()) and not path:
+                found.append({
+                    "line": i, "match": m.group(0),
+                    "text": line.strip()[:120],
+                    "in_quote_context": is_quotish(line),
+                    "severity": "weak",
+                })
+    return found
+
+
+NOTATION_ALNUM = "A-Za-z0-9\x01"  # \x01 はコードスパン
+NOTATION_BOUNDARY = re.compile(
+    rf"(?<=[{NOTATION_JA}]) ?(?=[{NOTATION_ALNUM}])|(?<=[{NOTATION_ALNUM}]) ?(?=[{NOTATION_JA}])")
+NOTATION_JA_CHAR = re.compile(f"[{NOTATION_JA}]")
+NOTATION_ALNUM_CHAR = re.compile(f"[{NOTATION_ALNUM}]")
+
+
+def _boundary_word(probe, start, end, codes):
+    """境目 probe[start:end]（空か半角スペース 1 つ）の前後に続く同じ種類の字の並びを、コードスパンを戻して返す。"""
+    def same(ch):
+        return NOTATION_ALNUM_CHAR if NOTATION_ALNUM_CHAR.match(ch) else NOTATION_JA_CHAR
+    left, right = same(probe[start - 1]), same(probe[end])
+    while start > 0 and left.match(probe[start - 1]):
+        start -= 1
+    while end < len(probe) and right.match(probe[end]):
+        end += 1
+    skipped = probe[:start].count("\x01")
+    word = probe[start:end]
+    for code in codes[skipped:skipped + word.count("\x01")]:
+        word = word.replace("\x01", code, 1)
+    return word
+
+
+def ja_alnum_boundaries(lines, fences):
+    """半角の英数字かコードスパンと、漢字・かなが隣り合う境目。(行番号, スペースありか, 境目の前後の語) の列。
+
+    スペースありは、間に半角スペースがちょうど 1 つの境目。間が 2 つ以上の空白・タブ・全角の空白の所と、
+    全角の記号（句読点・括弧・中点など）との境目は数えない。リンクと太字は表示される文字で見る
+    （`[README](x.md)を` は README とをの境目になる）。数えないもの: `>` で始まる引用行、コードスパンの中、
+    URL、< > で囲んだ URL、HTML のタグ、リンクと画像の宛先、画像、『』の中（作品名）。
+    """
+    found = []
+    for i, line in notation_lines(lines, fences):
+        if line.lstrip().startswith(">"):
+            continue
+        codes = [m.group(0) for m in PROSE_INLINE_CODE.finditer(line)]
+        probe = PROSE_INLINE_CODE.sub("\x01", line)
+        probe = NOTATION_LINK.sub(lambda m: m.group(1), NOTATION_IMAGE.sub("\x02", probe))
+        probe = NOTATION_URL_WHOLE.sub("\x02", NOTATION_TAG.sub("\x02", probe))
+        probe = NOTATION_TITLE.sub("『』", re.sub(r"\*\*|__", "", probe))
+        for m in NOTATION_BOUNDARY.finditer(probe):
+            found.append((i, m.group(0) == " ", _boundary_word(probe, m.start(), m.end(), codes)))
+    return found
+
+
+def ja_alnum_spacing(boundaries):
+    """境目を行ごとにまとめた弱シグナルと、(ありの数, なしの数) を返す。
+
+    スペースなしの行は必ず出す。なしのほうが多い文書（スペースを入れない書き方が主の文書）では、
+    少ないほうのスペースありの行も出す。count はその行の境目の数。"""
+    spaced = sum(1 for _, s, _ in boundaries if s)
+    unspaced = len(boundaries) - spaced
+    shown = {False} | ({True} if unspaced > spaced else set())
+    by_line = {}
+    for line, s, _ in boundaries:
+        if s in shown:
+            by_line[(line, s)] = by_line.get((line, s), 0) + 1
+    hits = [{"line": line, "match": "スペースあり" if s else "スペースなし", "count": n, "severity": "weak"}
+            for (line, s), n in sorted(by_line.items(), key=lambda kv: (kv[0][0], kv[0][1]))]
+    return hits, spaced, unspaced
+
+
+# 全角文字どうしの間のスペース。左は漢字・かなと全角の句読点・中点・コロン・セミコロン・括弧、右はそれに全角の！？を足した字。
+# 全角の！？の後のスペースは、文末の！？に別の文が続く形（JTF 3.2.1・3.2.2）なので左に入れない
+NOTATION_FW = NOTATION_JA + NOTATION_FW_MARKS
+NOTATION_FW_SPACE = re.compile(f"(?<=[{NOTATION_FW}]) (?=[{NOTATION_FW}！？])")
+NOTATION_FW_RUN = re.compile(f"[{NOTATION_JA}]{{1,6}}")  # match に入れる、スペースの隣の漢字・かなの並び（6 字まで）
+# 行頭の「・」と、番号の印（1）・１）・（1））と、その後の空白。印の字が全角なので、外さないとその後の空白が当たる。
+# 箇条書きの印（- * +）は、その後に続く「・」や番号の印を外すためにだけ入れる（- ・ 項目、- 1） 項目）。
+# ほかの行頭の印（# > 1. [ ] ①）は、後ろの空白の前が全角文字でないので、外さなくても当たらない。その印の後に「・」や番号の印が
+# 続く形（1. ・ 項目、## ・ 見出し）は、はがさないので当たる
+NOTATION_FW_LEAD = re.compile(r"^[ \t]*(?:(?:[-*+]|・|[0-9０-９]{1,9}）|（[0-9０-９]{1,9}）)[ \t]+)*")
+# HTML のタグ（名前が英字で始まるもの）。表示されないので外す。< > で囲んだ URL と、ほかの < … >（<パス> のような置き換える所の印）は残す
+NOTATION_HTML_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?:[ \t/][^<>\n]*)?>")
+
+
+def fullwidth_space_hits(lines, fences):
+    """全角文字（NOTATION_FW）どうしの間の半角スペース 1 つ。match はスペースとその前後で、前後はそれぞれ、隣が漢字・かな
+    ならその並び（6 字まで）、記号ならその 1 字（「初年度 約」「。 付いた朱は」）。すべて弱シグナル。
+
+    リンクは表示される文字で見て、HTML のタグは外して見る（`くわしくは <a href="#f1">事実 1</a>` は「くわしくは 事実」）。
+    太字の印 `**`・`__` は外さないので、印の外側のスペースは、太字を成り立たせるためかを見分けずに数えない。数えないもの:
+    `>` で始まる引用行、行頭の「・」と番号の印（1）・１）・（1））の後、コードスパンの中、URL、
+    < > で囲んだ URL、HTML のタグの中、リンクと画像の宛先、画像、『』の中（作品名）、英数字や半角の記号（`|` など）との間、
+    2 つ以上続く空白・タブ・全角の空白、行をまたぐ所、全角の！？の後。
+    """
+    found = []
+    for i, line in notation_lines(lines, fences):
+        if line.lstrip().startswith(">"):
+            continue
+        probe = NOTATION_FW_LEAD.sub("", PROSE_INLINE_CODE.sub("\x01", line))
+        probe = NOTATION_LINK.sub(lambda m: m.group(1), NOTATION_IMAGE.sub("\x02", probe))
+        probe = NOTATION_TAG.sub("\x02", NOTATION_HTML_TAG.sub("", probe))
+        probe = NOTATION_TITLE.sub("『』", NOTATION_URL_WHOLE.sub("\x02", probe))
+        for m in NOTATION_FW_SPACE.finditer(probe):
+            before, after = probe[:m.start()], probe[m.end():]
+            left = "".join(reversed(NOTATION_FW_RUN.match(before[::-1]).group(0))) if NOTATION_JA_CHAR.match(before[-1]) else before[-1]
+            right = NOTATION_FW_RUN.match(after).group(0) if NOTATION_JA_CHAR.match(after) else after[0]
+            found.append({
+                "line": i, "match": f"{left} {right}",
+                "text": line.strip()[:120],
+                "in_quote_context": is_quotish(line),
+                "severity": "weak",
+            })
+    return found
+
+
 def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=None):
     reference = profile == "reference"
     weak_by_category = _REFERENCE_WEAK_BY_CATEGORY if reference else _WEAK_BY_CATEGORY
@@ -1108,6 +1371,16 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
         text if paragraphs_source is None else paragraphs_source, paragraphs_unmeasured)
     stats.update(paragraph_stats)
 
+    spacing, spaced, unspaced = ja_alnum_spacing(ja_alnum_boundaries(lines, fences))
+    stats.update(ja_alnum_spaced=spaced, ja_alnum_unspaced=unspaced)
+    notation = {
+        "long_vowel_omissions": long_vowel_hits(lines, fences),
+        "url_followed_by_ja": url_ja_hits(lines, fences),
+        "ja_alnum_spacing": spacing,
+        "fullwidth_spaces": fullwidth_space_hits(lines, fences),
+        "kanji_numeral_counters": kanji_numeral_hits(lines, fences),
+    }
+
     if reference:
         return {
             "profile": "reference",
@@ -1119,6 +1392,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
             "symbol_notation": symbol_hits(lines),
             "touten_heavy_sentences": touten_hits(lines),
             "domain_terms": domain_term_hits(lines, fences),
+            **notation,
             "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
             "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
             "stats": stats,
@@ -1150,6 +1424,7 @@ def scan(text: str, profile=None, paragraphs_unmeasured=None, paragraphs_source=
         "symbol_notation": symbol_hits(lines),
         "touten_heavy_sentences": touten_hits(lines),
         "domain_terms": domain_term_hits(lines, fences),
+        **notation,
         "llm_phrasing": hits_of(LLM_PHRASES, "llm_phrasing"),
         "translated_metaphors": hits_of(TRANSLATED_METAPHORS, "translated_metaphors"),
         "stats": stats,
@@ -1172,6 +1447,11 @@ FINDING_KEYS = [
     "symbol_notation",
     "touten_heavy_sentences",
     "domain_terms",
+    "long_vowel_omissions",
+    "url_followed_by_ja",
+    "ja_alnum_spacing",
+    "fullwidth_spaces",
+    "kanji_numeral_counters",
     "llm_phrasing",
     "translated_metaphors",
 ]
@@ -1185,6 +1465,11 @@ REFERENCE_FINDING_KEYS = [
     "symbol_notation",
     "touten_heavy_sentences",
     "domain_terms",
+    "long_vowel_omissions",
+    "url_followed_by_ja",
+    "ja_alnum_spacing",
+    "fullwidth_spaces",
+    "kanji_numeral_counters",
     "llm_phrasing",
     "translated_metaphors",
 ]
@@ -1197,6 +1482,7 @@ PROFILE_FINDING_KEYS = {None: FINDING_KEYS, "reference": REFERENCE_FINDING_KEYS}
 BASELINE_ADDED_KEYS = frozenset({
     "principle_6_style_register", "symbol_notation", "llm_phrasing", "translated_metaphors",
     "touten_heavy_sentences", "domain_terms",
+    "long_vowel_omissions", "url_followed_by_ja", "ja_alnum_spacing", "fullwidth_spaces", "kanji_numeral_counters",
 })
 
 
@@ -1217,15 +1503,15 @@ def load_baseline(path, profile=None):
     except OSError as e:
         sys.exit(f"エラー: baseline を読めません: {e}")
     except json.JSONDecodeError as e:
-        sys.exit(f"エラー: baseline が JSON として解釈できません ({path}): {e}")
+        sys.exit(f"エラー: baseline が JSON として解釈できません（{path}）: {e}")
     if not isinstance(data, dict):
-        sys.exit(f"エラー: baseline のトップレベルがオブジェクトではありません ({path})")
+        sys.exit(f"エラー: baseline のトップレベルがオブジェクトではありません（{path}）")
     # profile の照合はキー欠落の判定より前に行う。別 profile の出力はキー集合が違うため、
     # 先に欠落判定へ進むと「必要なキーがありません」という原因違いの診断になる。
     # profile を持たない JSON は既定（--profile なし）の出力として扱う。
     if data.get("profile") != profile:
         sys.exit(
-            f"エラー: baseline の profile が今回の実行と違います ({path}): "
+            f"エラー: baseline の profile が今回の実行と違います（{path}）: "
             f"baseline={_profile_label(data.get('profile'))} / 今回={_profile_label(profile)}\n"
             "同じ --profile で出した --json 出力を渡してください"
         )
@@ -1233,7 +1519,7 @@ def load_baseline(path, profile=None):
     if missing:
         if set(missing) <= BASELINE_ADDED_KEYS:
             sys.exit(
-                f"エラー: baseline が旧バージョンの scan.py の出力です ({path}): "
+                f"エラー: baseline が旧バージョンの scan.py の出力です（{path}）: "
                 f"{', '.join(missing)} がありません\n"
                 "比較したい前回時点の原稿（git 管理下なら "
                 "git show HEAD~1:<file> > /tmp/prev.md、そうでなければ編集前の控え）に"
@@ -1241,7 +1527,7 @@ def load_baseline(path, profile=None):
                 "作り直すと、以後の比較は今回時点を起点にします"
             )
         sys.exit(
-            f"エラー: baseline に必要なキーがありません ({path}): {', '.join(missing)}\n"
+            f"エラー: baseline に必要なキーがありません（{path}）: {', '.join(missing)}\n"
             "scan.py の --json 出力をそのまま渡してください"
         )
     for key in keys:
@@ -1249,7 +1535,7 @@ def load_baseline(path, profile=None):
             isinstance(h, dict) and isinstance(h.get("match"), str) for h in data[key]
         ):
             sys.exit(
-                f"エラー: baseline の {key} が期待する形（match を持つオブジェクトの配列）ではありません ({path})"
+                f"エラー: baseline の {key} が期待する形（match を持つオブジェクトの配列）ではありません（{path}）"
             )
     return data
 
@@ -1307,7 +1593,7 @@ def summarize_diff(diff):
 
 # --- 原文からの保持 -----------------------------------------------------------
 
-# 桁区切りは 3 桁ごとのカンマだけを数字の一部とみなす（「1, 2, 3」の列挙を 1 つに繋げない）
+# 桁区切りは 3 桁ごとのカンマだけを数字の一部とみなす（「1, 2, 3」の列挙を 1 つにつなげない）
 NUMBER = re.compile(r"[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?")
 
 
@@ -1340,7 +1626,7 @@ def load_preserve(path):
         with open(path, encoding="utf-8-sig") as f:
             return unicodedata.normalize("NFC", f.read())
     except (OSError, UnicodeDecodeError) as e:
-        sys.exit(f"エラー: --preserve の原文を読めません ({path}): {e}")
+        sys.exit(f"エラー: --preserve の原文を読めません（{path}）: {e}")
 
 
 def preserve_diff(original: str, rewritten: str):
@@ -1420,6 +1706,35 @@ def _append_touten_detail(out, hits):
     out.append("")
 
 
+def _append_notation_detail(out, result):
+    """表記（S12）の 5 つの明細。英数字と日本語の間のスペースは、行番号だけを詰めて出す。"""
+    for key, label in (("long_vowel_omissions", "長音の抜け"), ("url_followed_by_ja", "URL の直後の日本語"),
+                       ("fullwidth_spaces", "全角文字どうしの間のスペース"), ("kanji_numeral_counters", "数えるときの漢数字")):
+        hits = result[key]
+        if not hits:
+            continue
+        out.append(f"--- {label} ({_count_label(hits)}) ---")
+        for h in hits:
+            q = "  [引用文脈?]" if h["in_quote_context"] else ""
+            out.append(f"  L{h['line']}: [弱] {h['match']}  |  {h['text']}{q}")
+        out.append("")
+    hits = result["ja_alnum_spacing"]
+    if not hits:
+        return
+    s = result["stats"]
+    out.append(f"--- 英数字と日本語の間のスペース (あり {s['ja_alnum_spaced']} / なし {s['ja_alnum_unspaced']}) ---")
+    for match, label in (("スペースなし", "スペースなしの行"),
+                         ("スペースあり", "スペースありの行（なしが多い文書なので、少ないほうも出す）")):
+        rows = [f"L{h['line']}" for h in hits if h["match"] == match]
+        if rows:
+            out.append(f"  [弱] {label}: {' '.join(rows)}")
+    out.append("")
+
+
+def _spacing_count(stats):
+    return f"スペースあり {stats['ja_alnum_spaced']} / なし {stats['ja_alnum_unspaced']}"
+
+
 WEAK_PHRASE_LABELS = [
     ("llm_phrasing", "LLM っぽい言い回し"),
     ("translated_metaphors", "翻訳調の比喩"),
@@ -1444,27 +1759,32 @@ def summarize(result):
     has_recall = bool(r["principle_8_recall_markers"])
     has_generation = bool(r["principle_5_generation_markers"])
     out = []
-    out.append("=== 定着レビュー 機械スキャン ===")
+    out.append("=== 定着レビューの機械スキャン ===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用悪例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・語の分野・通常段落の長さ。違反断定でなく文脈判断)")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・語の分野・表記（長音・URL・英数字と日本語の間・全角文字どうしの間・数えるときの漢数字）・通常段落の長さ。違反断定でなく文脈判断)")
     out.append("")
-    out.append(f"太字などの強調      : {len(r['principle_7_bold_emphasis'])} 箇所  (原則 7: 2 箇所以上で違反疑い)")
+    out.append(f"太字などの強調      : {len(r['principle_7_bold_emphasis'])} か所  (原則 7: 2 か所以上で違反疑い)")
     out.append(f"前置きフィラー      : {_count_label(r['principle_1_fillers'])}    (原則 1)")
     out.append(f"構造宣言            : {len(r['principle_2_structure_decl'])} 件    (原則 2)")
     out.append(f"万能語              : {_count_label(r['principle_3_buzzwords'])}    (原則 3)")
     out.append(f"死んだ比喩          : {_count_label(r['principle_4_dead_metaphors'])}    (原則 4)")
     out.append(f"ヘッジ・両論併記    : {_count_label(r['principle_6_hedges'])}    (原則 6)")
-    out.append(f"文体レジスタ        : {_count_label(r['principle_6_style_register'])}    (原則 6 補足: 詠嘆・指示)")
+    out.append(f"文体レジスター      : {_count_label(r['principle_6_style_register'])}    (原則 6 補足: 詠嘆・指示)")
     out.append(f"生成の問いシグナル  : {'有' if has_generation else '無'}     (原則 5)")
     out.append(f"想起テストシグナル  : {'有' if has_recall else '無'}     (原則 8)")
     out.append(f"記号表記            : {_count_label(r['symbol_notation'])}    (記号の字形。S9)")
     out.append(f"読点の多い文        : {_count_label(r['touten_heavy_sentences'])}    (1 文に読点 3 つ以上。S11)")
     out.append(f"語の分野            : {_count_label(r['domain_terms'])}    (S7 の表の語。表に無い語は目視)")
+    out.append(f"長音の抜け          : {_count_label(r['long_vowel_omissions'])}    (S12 の表の語の末尾の長音)")
+    out.append(f"URL の直後の日本語  : {_count_label(r['url_followed_by_ja'])}    (リンク先に日本語が入る。S12)")
+    out.append(f"英数字と日本語の間  : {_spacing_count(r['stats'])}    (境目の数。S12)")
+    out.append(f"全角文字どうしの間  : {_count_label(r['fullwidth_spaces'])}    (間の半角スペース。S12)")
+    out.append(f"数えるときの漢数字  : {_count_label(r['kanji_numeral_counters'])}    (一つ〜九つ。算用数字で書く。S12)")
     for key, label in WEAK_PHRASE_LABELS:
         out.append(f"{label}：{_count_label(r[key])}（暫定の弱シグナル）")
     s = r["stats"]
-    out.append(f"数字の密度          : {s['numeric_per_1000_chars']} 個/1000字 (数字トークン {s['numeric_tokens']})")
-    out.append(f"ダッシュの密度      : {s['dash_per_1000_chars']} 個/1000字 (ダッシュ {s['dash_count']}。地の文のみで、表・コード・見出しは数えない)")
+    out.append(f"数字の密度          : {s['numeric_per_1000_chars']} 個/1000 字 (数字トークン {s['numeric_tokens']})")
+    out.append(f"ダッシュの密度      : {s['dash_per_1000_chars']} 個/1000 字 (ダッシュ {s['dash_count']}。地の文のみで、表・コード・見出しは数えない)")
     out.append("")
     for key, label in [
         ("principle_1_fillers", "前置きフィラー"),
@@ -1473,7 +1793,7 @@ def summarize(result):
         ("principle_4_dead_metaphors", "死んだ比喩"),
         ("principle_5_generation_markers", "生成の問い"),
         ("principle_6_hedges", "ヘッジ・両論併記"),
-        ("principle_6_style_register", "文体レジスタ（詠嘆・指示）"),
+        ("principle_6_style_register", "文体レジスター（詠嘆・指示）"),
         ("principle_7_bold_emphasis", "強調"),
     ]:
         hits = r[key]
@@ -1488,6 +1808,7 @@ def summarize(result):
     _append_symbol_detail(out, r["symbol_notation"])
     _append_touten_detail(out, r["touten_heavy_sentences"])
     _append_domain_detail(out, r["domain_terms"])
+    _append_notation_detail(out, r)
     _append_weak_phrase_detail(out, r)
     out.append(summarize_paragraphs(r))
     return "\n".join(out)
@@ -1496,9 +1817,9 @@ def summarize(result):
 def summarize_reference(result):
     r = result
     out = []
-    out.append("=== 参照文書 機械スキャン（--profile reference）===")
+    out.append("=== 参照文書の機械スキャン（--profile reference）===")
     out.append("(注意: 以下はシグナルであって判定ではない。引用例の中のヒットは違反ではない。")
-    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・語の分野・通常段落の長さ。違反断定でなく文脈判断。")
+    out.append(" [弱] は実測で正当用法を確認した語・予防的に暫定指定した語・記号表記・読点の多い文・語の分野・表記（長音・URL・英数字と日本語の間・全角文字どうしの間・数えるときの漢数字）・通常段落の長さ。違反断定でなく文脈判断。")
     out.append(" 手順の「〜してください」と箇条書き先頭のラベルの太字は数えない)")
     out.append("")
     sections = [
@@ -1511,13 +1832,18 @@ def summarize_reference(result):
     for key, label, rule in sections:
         out.append(f"{label}: {_count_label(r[key])}    ({rule})")
     s = r["stats"]
-    out.append(f"数字の密度: {s['numeric_per_1000_chars']} 個/1000字 (数字トークン {s['numeric_tokens']})")
+    out.append(f"数字の密度: {s['numeric_per_1000_chars']} 個/1000 字 (数字トークン {s['numeric_tokens']})")
     out.append(f"記号表記: {_count_label(r['symbol_notation'])}    (S9)")
     out.append(f"読点の多い文: {_count_label(r['touten_heavy_sentences'])}    (S11)")
     out.append(f"語の分野: {_count_label(r['domain_terms'])}    (S7 の表の語。表に無い語は目視)")
+    out.append(f"長音の抜け: {_count_label(r['long_vowel_omissions'])}    (S12 の表の語の末尾の長音)")
+    out.append(f"URL の直後の日本語: {_count_label(r['url_followed_by_ja'])}    (リンク先に日本語が入る。S12)")
+    out.append(f"英数字と日本語の間: {_spacing_count(r['stats'])}    (境目の数。S12)")
+    out.append(f"全角文字どうしの間: {_count_label(r['fullwidth_spaces'])}    (間の半角スペース。S12)")
+    out.append(f"数えるときの漢数字: {_count_label(r['kanji_numeral_counters'])}    (一つ〜九つ。算用数字で書く。S12)")
     for key, label in WEAK_PHRASE_LABELS:
         out.append(f"{label}：{_count_label(r[key])}（暫定の弱シグナル）")
-    out.append(f"ダッシュの密度: {s['dash_per_1000_chars']} 個/1000字 (ダッシュ {s['dash_count']}。地の文のみ)")
+    out.append(f"ダッシュの密度: {s['dash_per_1000_chars']} 個/1000 字 (ダッシュ {s['dash_count']}。地の文のみ)")
     out.append("")
     for key, label, rule in sections:
         hits = r[key]
@@ -1532,14 +1858,15 @@ def summarize_reference(result):
     _append_symbol_detail(out, r["symbol_notation"])
     _append_touten_detail(out, r["touten_heavy_sentences"])
     _append_domain_detail(out, r["domain_terms"])
+    _append_notation_detail(out, r)
     _append_weak_phrase_detail(out, r)
     out.append(summarize_paragraphs(r))
     return "\n".join(out)
 
 
 def main():
-    ap = argparse.ArgumentParser(description="定着レビュー用 機械スキャン")
-    ap.add_argument("file", help="対象ファイル (Markdown / テキスト)")
+    ap = argparse.ArgumentParser(description="定着レビュー用の機械スキャン")
+    ap.add_argument("file", help="対象ファイル（Markdown / テキスト）")
     ap.add_argument("--json", action="store_true", help="JSON で出力")
     ap.add_argument("--baseline", metavar="PREV_JSON",
                     help="前回の --json 出力と比較し resolved/new/persisting を出力")

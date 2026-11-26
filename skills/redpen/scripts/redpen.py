@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""redpen: 文書をブラウザで表示し、朱（コメント）を付けるためのツール。
+"""redpen: 文書をブラウザーで表示し、朱（コメント）を付けるためのツール。
 
 Python 3.9 以上の標準ライブラリだけで動く。本文は書き換えない。朱は対象ファイルの
 隣の `<対象ファイル>.review.json` に保存する。
@@ -10,20 +10,20 @@ Python 3.9 以上の標準ライブラリだけで動く。本文は書き換え
                                         preview の URL）を表示し、その上で朱を付ける。朱は <file> の隣に保存する
   python3 redpen.py <file> --static     サーバーなしで開ける HTML を、対象ファイルの隣の
                                         `<対象ファイル>.redpen.html` に書き出す（図などの
-                                        隣のファイルは同じフォルダから読むので、動かさずに開く）
+                                        隣のファイルは同じフォルダーから読むので、動かさずに開く）
 
-サーバーは対象ファイルのフォルダの中のファイルだけを、ページと同じ階層のパスで返す
+サーバーは対象ファイルのフォルダーの中のファイルだけを、ページと同じ階層のパスで返す
 （Markdown や HTML の中の `./fig-1.svg` のような相対パスをそのまま表示するため）。
---rendered のときは、フォルダの代わりに、その URL のサーバーから同じパスのものを取り寄せて返す
+--rendered のときは、フォルダーの代わりに、その URL のサーバーから同じパスのものを取り寄せて返す
 （MDX の部品の図のように、ビルドしないと描けないものを表示するため）。取り寄せる先は手元
 （127.0.0.1・localhost・[::1]）の http だけで、利用者名（user@）つきの URL は断り、環境の proxy を使わず、
 転送（3xx）には従わない（ページが使うファイルの転送は 502 と理由の文、ページ自身の転送は、起動時は停止、起動後は /api/doc の 500）。要求の行のホストは使わず、/ で始まらないパスは 400 にする。
-ブラウザの要求のヘッダーは Accept だけを渡す。取り寄せた応答の Content-Type は、redpen が読んだ
+ブラウザーの要求のヘッダーは Accept だけを渡す。取り寄せた応答の Content-Type は、redpen が読んだ
 type/subtype と charset に書き直して返し（読めない値は application/octet-stream）、スクリプトが動きうる型には
 隣のファイルと同じく CSP の sandbox を付ける。取り寄せられないときは、URL つきの理由で止める（起動時は
 終了コード 2、起動後は 502 か /api/doc の 500）。ページの本文は、Content-Type で読めた charset（無ければ UTF-8。<meta charset> は見ない）で読み、読めないバイトを
 含むときと、知らない文字コード名のときは、置き換えて読まずに止める（起動時は終了コード 2、起動後は /api/doc の 500）。
-ページから redpen に届く要求のうち、ブラウザが Origin: null を付けるもの（モジュールのスクリプトの読み込みや fetch など）は
+ページから redpen に届く要求のうち、ブラウザーが Origin: null を付けるもの（モジュールのスクリプトの読み込みや fetch など）は
 拒否するので、
 それで描く部品（Astro の client:only の部品など）は出ず、client:load などの部品は、HTML は出るが動きは付かない。本文は取り寄せたページで、ページの基準の <base> を
 <head> の中（無ければ <!DOCTYPE> の後か先頭）に入れる。--rendered と --static は一緒に使えない。--rendered なしで開いた .mdx は、import・export の
@@ -69,7 +69,7 @@ def needs_sandbox(ctype):
     # 引数（; charset=…）と大文字小文字を先に落とす
     ctype = ctype.split(";", 1)[0].strip(" \t").lower()
     # 1 つの type/subtype として読めない値（カンマで並んだ型、subtype の無い型、TYPE_RE の字の外の字を含む型）は、
-    # ブラウザが別の型と読むか中身から推しうるので、動く側に倒す（ブラウザは並んだ型の最後を使うので、
+    # ブラウザーが別の型と読むか中身から推しうるので、動く側に倒す（ブラウザーは並んだ型の最後を使うので、
     # image/png,image/svg+xml は SVG として描かれうる）。XML の型（subtype が xml か +xml で終わる。
     # image/svg+xml を含む）は、どの type でも XML の文書として開かれ、スクリプトが動きうる
     if not TYPE_RE.fullmatch(ctype):
@@ -83,8 +83,8 @@ def needs_sandbox(ctype):
 def clean_type(ctype):
     """取り寄せ先の Content-Type を、redpen が読めた形（type/subtype と、読めれば charset）に書き直す。
 
-    受け取った値をそのまま返すと、redpen とブラウザが別の型と読みうる（ブラウザはカンマで並んだ型の最後を使う）。
-    書き直した値を返して、それで sandbox を決めれば、判定する値とブラウザが受ける値が同じになる。
+    受け取った値をそのまま返すと、redpen とブラウザーが別の型と読みうる（ブラウザーはカンマで並んだ型の最後を使う）。
+    書き直した値を返して、それで sandbox を決めれば、判定する値とブラウザーが受ける値が同じになる。
     1 つの型として読めない値は application/octet-stream にする（sandbox を付ける側）。"""
     main, _, params = ctype.partition(";")
     main = main.strip(" \t").lower()
@@ -189,10 +189,10 @@ class Rendered:
 
     def fetch(self, path, accept=None):
         """origin + path を取り寄せ、(状態の番号, Content-Type, 本体) を返す。取り寄せられないときは、理由つきの OSError。
-        accept はブラウザの要求の Accept。開発用サーバーには、同じ URL でも Accept で返すものを変えるものがある
+        accept はブラウザーの要求の Accept。開発用サーバーには、同じ URL でも Accept で返すものを変えるものがある
         （Vite は .css を、Accept が text/css なら CSS、そうでなければ JavaScript で返す）。
 
-        接続・応答・本体のどこで失敗しても、ここ 1 か所で URL つきの OSError に揃える
+        接続・応答・本体のどこで失敗しても、ここ 1 か所で URL つきの OSError にそろえる
         （HTTP でない応答、途中で切れた本体、時間切れ、URL に使えない字など）。"""
         url = self.origin + path
         try:
@@ -243,10 +243,10 @@ def insert_base(html, path):
     """ページの中の相対パスを、ページの実際の基準で読ませる <base> を、<head> の中に入れる。
 
     基準は、ページ自身の <base href>（あれば。相対ならページのパスで解決する）か、ページのパス（path）。
-    ブラウザは最初の <base href> を使うので、redpen の <base> を先に置けば、ページの基準と同じになる。
+    ブラウザーは最初の <base href> を使うので、redpen の <base> を先に置けば、ページの基準と同じになる。
     ページ自身の href が URL として読めない（urljoin かポートの読み取りが失敗する）か、data:・javascript: のように
     http(s) でないときは、ページのパスを使う。<body> の中の <base> は見ない。
-    <!DOCTYPE> より前に置くと、ブラウザが互換モードで描く。HTML を字で読むので、<head> の中のスクリプトや
+    <!DOCTYPE> より前に置くと、ブラウザーが互換モードで描く。HTML を字で読むので、<head> の中のスクリプトや
     属性の値の中の字（<body、</head、<base href、<!doctype）には惑わされうる。"""
     head_end = re.search(r"</head\s*>|<body[\s>]", html, re.I)
     # href は属性の名前として読む（直前が空白・/・引用符、直後が空白・=・/・>）。値の無い href は、値が空と読む
@@ -440,7 +440,7 @@ def make_handler(target, review, port_box, rendered=None):
                     pass
 
         def origin_ok(self):
-            # 127.0.0.1 で待ち受けても、ブラウザの中のほかのページからは要求が届く。
+            # 127.0.0.1 で待ち受けても、ブラウザーの中のほかのページからは要求が届く。
             # Host で DNS rebinding を、Origin でほかのオリジンからの書き込みを止める。
             port = port_box[0]
             allowed = (f"127.0.0.1:{port}", f"localhost:{port}")
@@ -495,14 +495,14 @@ def make_handler(target, review, port_box, rendered=None):
                 self.send_json(502, {"error": str(e)})
                 return
             # 隣のファイルと同じく、最上位で開いてもスクリプトを動かさない。朱の API を呼ばせないため。
-            # 型は redpen が読んだ値に書き直して返す（判定した値とブラウザが受ける値を同じにする）
+            # 型は redpen が読んだ値に書き直して返す（判定した値とブラウザーが受ける値を同じにする）
             ctype = clean_type(ctype)
             extra = (("Content-Security-Policy", "sandbox"),) if needs_sandbox(ctype) else ()
             self.send_bytes(502 if 300 <= status < 400 else status, body, ctype, extra=extra)
 
         def serve_sibling(self, path):
-            # 対象ファイルのフォルダの中の通常ファイルだけを返す。.. や symlink で外へ出る
-            # パスは、実体のパスがフォルダの外になるので返さない。
+            # 対象ファイルのフォルダーの中の通常ファイルだけを返す。.. や symlink で外へ出る
+            # パスは、実体のパスがフォルダーの外になるので返さない。
             rel = unquote(path).lstrip("/")
             try:
                 real = (root / rel).resolve(strict=True)
@@ -520,7 +520,7 @@ def make_handler(target, review, port_box, rendered=None):
                 # 文書スキルの書く文書は UTF-8。HTML・CSS は文書の中の charset の指定に任せる
                 ctype += "; charset=utf-8"
             # 最上位で開いても、中のスクリプトを動かさない（allow-scripts を付けない sandbox）。朱の API を
-            # 呼ばせないため。PDF などには付けない（ブラウザが表示を止める）
+            # 呼ばせないため。PDF などには付けない（ブラウザーが表示を止める）
             extra = (("Content-Security-Policy", "sandbox"),) if needs_sandbox(ctype) else ()
             self.send_bytes(200, real.read_bytes(), ctype, extra=extra)
 
@@ -596,7 +596,7 @@ def render_app(cfg):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="文書をブラウザで表示し、朱を付ける")
+    parser = argparse.ArgumentParser(description="文書をブラウザーで表示し、朱を付ける")
     parser.add_argument("file", help="対象の Markdown（MDX を含む）か HTML のファイル。--rendered のときは、そのページの原稿")
     parser.add_argument("--port", type=int, default=0, help="待ち受けるポート（省略時は空きを自動で選ぶ）")
     parser.add_argument("--static", action="store_true", help="サーバーを起動せず、対象ファイルの隣に HTML を書き出す")
@@ -611,7 +611,7 @@ def main(argv=None):
     try:
         target.read_text(encoding="utf-8")
     except (UnicodeDecodeError, OSError) as e:
-        print(f"redpen: ERROR: UTF-8 のテキストとして読めません: {target} ({e})", file=sys.stderr)
+        print(f"redpen: ERROR: UTF-8 のテキストとして読めません: {target}（{e}）", file=sys.stderr)
         return 2
 
     try:
@@ -865,7 +865,7 @@ aside { min-width:0; }
     if (h) { html += '<h' + h[1].length + '>' + inline(h[2]) + '</h' + h[1].length + '>'; lines = lines.slice(1); }
     return html + '<p>' + lines.map(inline).join('<br>') + '</p>';
   }
-  /* MDX のブロックのうち、ビルドしないと描けないもの。import・export のブロックは '' （出さない）、
+  /* MDX のブロックのうち、ビルドしないと描けないもの。import・export のブロックは ''（出さない）、
      部品・HTML のタグや式で始まるブロックは、何であるかと原文を見せる枠、ほかは null（Markdown として出す） */
   function mdxBlock(src) {
     var first = src.split('\n')[0].trim();
@@ -949,7 +949,7 @@ aside { min-width:0; }
     f.setAttribute('sandbox', 'allow-scripts allow-popups' + (CFG.server ? '' : ' allow-same-origin'));
     f.setAttribute('title', CFG.name);
     var html = state.doc.html;
-    /* 末尾に足す。</body> や </html> の後ろのスクリプトも、ブラウザは本文に戻して実行するので、
+    /* 末尾に足す。</body> や </html> の後ろのスクリプトも、ブラウザーは本文に戻して実行するので、
        本文の中の </body> の文字列を探さない */
     f.srcdoc = html + FRAME_SCRIPT;
     state.frame = f;
@@ -974,7 +974,7 @@ aside { min-width:0; }
     state.pending = draftOf(target, label);
     composerEl.innerHTML = '<div class="composer"><div class="where">' + esc(state.pending.label || target) + '</div>' +
       '<textarea id="ctext" placeholder="ここをどう直してほしいか"></textarea>' +
-      '<div class="row"><button class="primary" id="csave">朱を保存</button><button id="ccancel">取消</button></div></div>';
+      '<div class="row"><button class="primary" id="csave">朱を保存</button><button id="ccancel">取り消し</button></div></div>';
     var ta = document.getElementById('ctext');
     ta.focus();
     document.getElementById('ccancel').onclick = closeComposer;

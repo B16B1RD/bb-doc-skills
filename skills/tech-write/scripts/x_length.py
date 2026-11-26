@@ -418,7 +418,7 @@ def main(argv=None):
         with open(args.draft, encoding="utf-8-sig") as f:
             text = f.read()
     except (OSError, UnicodeError) as e:
-        print(f"エラー: 稿のファイルを読めません: {args.draft} ({e.__class__.__name__})", file=sys.stderr)
+        print(f"エラー: 稿のファイルを読めません: {args.draft}（{e.__class__.__name__}）", file=sys.stderr)
         return 2
     posts = split_posts(text)
     if not posts:
